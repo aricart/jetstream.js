@@ -57,6 +57,7 @@ import type {
   Subscription,
 } from "https://deno.land/x/nats/src/mod.ts";
 import {
+  createInbox,
   QueuedIterator,
   SubscriptionImpl,
 } from "https://deno.land/x/nats/nats-base-client/internal_mod.ts";
@@ -287,6 +288,47 @@ class ConsumerAPIImpl extends ApiClient implements ConsumerAPI {
       throw new Error("no messages");
     }
     return toJsMsg(m);
+  }
+
+  pullBatch(
+    stream: string,
+    durable: string,
+    opts: Partial<PullOptions> = { batch: 1 },
+  ): QueuedIterator<JsMsg> {
+    opts.batch = opts.batch ?? 1;
+    opts.no_wait = true;
+    const qi = new QueuedIterator<JsMsg>();
+    const wants = opts.batch;
+    let received = 0;
+    qi.yieldedCb = (m: JsMsg) => {
+      received++;
+      // if we have one pending, this is all we have
+      if (qi.getPending() === 1 && m.info.pending === 0 || wants == received) {
+        qi.stop();
+      }
+    };
+    const inbox = createInbox();
+    this.nc.subscribe(inbox, {
+      max: opts.batch,
+      callback: (err, msg) => {
+        if (err) {
+          qi.stop(err);
+        }
+        if (
+          msg.headers && (msg.headers.code === 404 || msg.headers.code === 503)
+        ) {
+          qi.stop();
+        }
+        qi.push(toJsMsg(msg));
+      },
+    });
+
+    this.nc.publish(
+      `${this.prefix}.CONSUMER.MSG.NEXT.${stream}.${durable}`,
+      this.jc.encode(opts),
+      { reply: inbox },
+    );
+    return qi;
   }
 
   fetch(

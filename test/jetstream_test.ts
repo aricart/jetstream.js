@@ -1,10 +1,11 @@
 import { cleanup, initStream, JetStreamConfig, setup } from "./jstest_util.ts";
 import { JetStream, JetStreamManager } from "../src/jetstream.ts";
-import { AckPolicy, msgID, PubAck } from "../src/jstypes.ts";
+import { AckPolicy, JsMsg, msgID, PubAck } from "../src/jstypes.ts";
 import {
   assert,
   assertEquals,
   assertThrowsAsync,
+  fail,
 } from "https://deno.land/std@0.83.0/testing/asserts.ts";
 import {
   createInbox,
@@ -134,7 +135,7 @@ Deno.test("jetstream - fetch", async () => {
         noMessages.resolve();
       } else {
         m.respond();
-        sub.unsubscribe();
+        sub.unsubscribe().then().catch();
       }
     }
   })();
@@ -161,4 +162,80 @@ Deno.test("jetstream - fetch", async () => {
 Deno.test("jetstream - date format", () => {
   const d = new Date();
   console.log(d.toISOString());
+});
+
+Deno.test("jetstream - pull batch none", async () => {
+  const { ns, nc } = await setup(JetStreamConfig({}, true));
+  const { stream } = await initStream(nc);
+  const jsm = await JetStreamManager(nc);
+  await jsm.consumers.add(stream, {
+    durable_name: "me",
+    ack_policy: AckPolicy.Explicit,
+  });
+
+  const batch = jsm.consumers.pullBatch(stream, "me", { batch: 10 });
+  let done = (async () => {
+    for await (const m of batch) {
+      console.log(m.info);
+      fail("expected no messages");
+    }
+  })();
+
+  await done;
+  await cleanup(ns, nc);
+});
+
+Deno.test("jetstream - pull batch some", async () => {
+  const { ns, nc } = await setup(JetStreamConfig({}, true));
+  const { stream, subj } = await initStream(nc);
+  const jsm = await JetStreamManager(nc);
+  await jsm.consumers.add(stream, {
+    durable_name: "me",
+    ack_policy: AckPolicy.Explicit,
+  });
+
+  const sc = StringCodec();
+  const js = await JetStream(nc);
+  await js.publish(subj, sc.encode("a"));
+
+  const batch = jsm.consumers.pullBatch(stream, "me", { batch: 10 });
+  const msgs: JsMsg[] = [];
+  let done = (async () => {
+    for await (const m of batch) {
+      msgs.push(m);
+      m.ack();
+    }
+  })();
+  await done;
+  assertEquals(msgs.length, 1);
+  await cleanup(ns, nc);
+});
+
+Deno.test("jetstream - pull batch more", async () => {
+  const { ns, nc } = await setup(JetStreamConfig({}, true));
+  const { stream, subj } = await initStream(nc);
+  const jsm = await JetStreamManager(nc);
+  await jsm.consumers.add(stream, {
+    durable_name: "me",
+    ack_policy: AckPolicy.Explicit,
+  });
+
+  const sc = StringCodec();
+  const js = await JetStream(nc);
+  const data = "abcdefghijklmnopqrstuvwxyz0123456789";
+  for (const c of data) {
+    await js.publish(subj, sc.encode(c));
+  }
+
+  const batch = jsm.consumers.pullBatch(stream, "me", { batch: 5 });
+  const msgs: JsMsg[] = [];
+  let done = (async () => {
+    for await (const m of batch) {
+      msgs.push(m);
+      m.ack();
+    }
+  })();
+  await done;
+  assertEquals(msgs.length, 5);
+  await cleanup(ns, nc);
 });

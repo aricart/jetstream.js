@@ -40,7 +40,9 @@ export async function setup(
   serverConf?: Record<string, unknown>,
   clientOpts?: Partial<ConnectionOptions>,
 ): Promise<{ ns: NatsServer; nc: NatsConnection }> {
-  const ns = await NatsServer.start(serverConf);
+  const dt = serverConf as { debug: boolean; trace: boolean };
+  const debug = dt.debug || dt.trace;
+  const ns = await NatsServer.start(serverConf, debug);
   clientOpts = clientOpts ? clientOpts : {};
   const copts = extend({ port: ns.port }, clientOpts) as ConnectionOptions;
   const nc = await connect(copts);

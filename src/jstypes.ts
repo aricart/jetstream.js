@@ -24,6 +24,7 @@ import {
 } from "https://deno.land/x/nats/src/mod.ts";
 import {
   nuid,
+  QueuedIterator,
   SubscriptionImpl,
 } from "https://deno.land/x/nats/nats-base-client/internal_mod.ts";
 
@@ -102,6 +103,12 @@ export interface ConsumerAPI {
     deliver: string,
     opts: { batch?: number; no_wait?: boolean; expires?: Date },
   ): void;
+
+  pullBatch(
+    stream: string,
+    durable: string,
+    opts: Partial<PullOptions>,
+  ): QueuedIterator<JsMsg>;
 }
 
 export function autoAck(sub: Subscription) {
