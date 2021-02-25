@@ -302,7 +302,8 @@ class ConsumerAPIImpl extends ApiClient implements ConsumerAPI {
     let received = 0;
     qi.yieldedCb = (m: JsMsg) => {
       received++;
-      // if we have one pending, this is all we have
+      // if we have one pending and we got the expected
+      // or there are no more stop the iterator
       if (qi.getPending() === 1 && m.info.pending === 0 || wants == received) {
         qi.stop();
       }
@@ -313,13 +314,14 @@ class ConsumerAPIImpl extends ApiClient implements ConsumerAPI {
       callback: (err, msg) => {
         if (err) {
           qi.stop(err);
-        }
-        if (
+        } else if (
           msg.headers && (msg.headers.code === 404 || msg.headers.code === 503)
         ) {
           qi.stop();
+        } else {
+          qi.received++;
+          qi.push(toJsMsg(msg));
         }
-        qi.push(toJsMsg(msg));
       },
     });
 

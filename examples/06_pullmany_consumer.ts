@@ -1,7 +1,4 @@
-import {
-  connect,
-  createInbox,
-} from "https://raw.githubusercontent.com/nats-io/nats.deno/js/src/mod.ts";
+import { connect, createInbox } from "https://deno.land/x/nats/src/mod.ts";
 import { delay } from "https://raw.githubusercontent.com/nats-io/nats.deno/main/nats-base-client/internal_mod.ts";
 
 import { JetStreamManager } from "../src/jetstream.ts";
