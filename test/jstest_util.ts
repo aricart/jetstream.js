@@ -24,7 +24,10 @@ export const jsopts = {
   },
 };
 
-export function JetStreamConfig(opts = {}, randomStoreDir = true): any {
+export function JetStreamConfig(
+  opts = {},
+  randomStoreDir = true,
+): Record<string, unknown> {
   const conf = Object.assign(opts, jsopts);
   if (randomStoreDir) {
     conf.jetstream.store_dir = path.join("/tmp", "jetstream", nuid.next());
@@ -33,10 +36,9 @@ export function JetStreamConfig(opts = {}, randomStoreDir = true): any {
 
   return opts;
 }
-
 export async function setup(
-  serverConf?: any,
-  clientOpts?: any,
+  serverConf?: Record<string, unknown>,
+  clientOpts?: Partial<ConnectionOptions>,
 ): Promise<{ ns: NatsServer; nc: NatsConnection }> {
   const ns = await NatsServer.start(serverConf);
   clientOpts = clientOpts ? clientOpts : {};

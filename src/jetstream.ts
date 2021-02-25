@@ -30,10 +30,10 @@ export const defaultTimeout = 5000;
 export const JetstreamNotEnabled = "jetstream-not-enabled";
 export const InvalidJestreamAck = "invalid-jetstream-ack";
 
-export async function JetStream(
+export function JetStream(
   nc: NatsConnection,
   opts: JetStreamOptions = {} as JetStreamOptions,
-): Promise<JetStreamClient> {
+): JetStreamClient {
   return new JetStreamClientImpl(nc, opts);
 }
 

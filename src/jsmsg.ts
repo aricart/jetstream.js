@@ -3,7 +3,6 @@ import {
   Msg,
   MsgHdrs,
   RequestOptions,
-  Subscription,
 } from "https://deno.land/x/nats/src/mod.ts";
 
 export const ACK = Uint8Array.of(43, 65, 67, 75);

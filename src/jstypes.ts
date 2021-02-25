@@ -113,7 +113,7 @@ export function autoAck(sub: Subscription) {
 
 export interface PullOptions {
   batch: number;
-  no_wait: boolean;
+  "no_wait": boolean;
   expires: Date;
 }
 
@@ -205,9 +205,9 @@ export function durable(name: string): JetStreamSubOption {
   };
 }
 
-export function attach(deliver_subject: string): JetStreamSubOption {
+export function attach(deliverSubject: string): JetStreamSubOption {
   return (opts: JetStreamSubOpts) => {
-    opts.cfg.deliver_subject = deliver_subject;
+    opts.cfg.deliver_subject = deliverSubject;
   };
 }
 
@@ -305,16 +305,16 @@ export interface StreamConfig {
   name: string;
   subjects: string[];
   retention: RetentionPolicy;
-  max_consumers: number;
-  max_msgs: number;
-  max_bytes: number;
+  "max_consumers": number;
+  "max_msgs": number;
+  "max_bytes": number;
   discard: DiscardPolicy;
-  max_age: number;
-  max_msg_size: number;
+  "max_age": number;
+  "max_msg_size": number;
   storage: StorageType;
-  num_replicas: number;
-  no_ack: boolean;
-  duplicate_window: number;
+  "num_replicas": number;
+  "no_ack": boolean;
+  "duplicate_window": number;
 }
 
 export enum RetentionPolicy {
@@ -343,11 +343,11 @@ export interface StreamInfo {
 export interface StreamState {
   messages: number;
   bytes: number;
-  first_seq: number;
-  first_ts: number;
-  last_seq: number;
-  last_ts: string;
-  consumer_count: number;
+  "first_seq": number;
+  "first_ts": number;
+  "last_seq": number;
+  "last_ts": string;
+  "consumer_count": number;
 }
 
 export interface ClusterInfo {
@@ -386,45 +386,45 @@ export interface SuccessResponse extends ApiResponse {
 
 export interface EphemeralConsumer {
   name: string;
-  deliver_subject?: string;
-  deliver_policy: DeliverPolicy;
-  opt_start_seq?: number;
-  opt_start_time?: number;
-  ack_policy: AckPolicy;
-  ack_wait?: number;
-  max_deliver?: number;
-  filter_subject?: string;
-  replay_policy: ReplayPolicy;
-  rate_limit_bps?: number;
-  sample_freq?: string;
-  max_waiting?: number;
-  max_ack_pending?: number;
+  "deliver_subject"?: string;
+  "deliver_policy": DeliverPolicy;
+  "opt_start_seq"?: number;
+  "opt_start_time"?: number;
+  "ack_policy": AckPolicy;
+  "ack_wait"?: number;
+  "max_deliver"?: number;
+  "filter_subject"?: string;
+  "replay_policy": ReplayPolicy;
+  "rate_limit_bps"?: number;
+  "sample_freq"?: string;
+  "max_waiting"?: number;
+  "max_ack_pending"?: number;
 }
 
 export interface ConsumerConfig {
   name: string;
-  durable_name?: string;
-  deliver_subject?: string;
-  deliver_policy: DeliverPolicy;
-  opt_start_seq?: number;
-  opt_start_time?: number;
-  ack_policy: AckPolicy;
-  ack_wait?: number;
-  max_deliver?: number;
-  filter_subject?: string;
-  replay_policy: ReplayPolicy;
-  rate_limit_bps?: number;
-  sample_freq?: string;
-  max_waiting?: number;
-  max_ack_pending?: number;
+  "durable_name"?: string;
+  "deliver_subject"?: string;
+  "deliver_policy": DeliverPolicy;
+  "opt_start_seq"?: number;
+  "opt_start_time"?: number;
+  "ack_policy": AckPolicy;
+  "ack_wait"?: number;
+  "max_deliver"?: number;
+  "filter_subject"?: string;
+  "replay_policy": ReplayPolicy;
+  "rate_limit_bps"?: number;
+  "sample_freq"?: string;
+  "max_waiting"?: number;
+  "max_ack_pending"?: number;
 }
 
 export interface PushConsumerConfig extends ConsumerConfig {
-  deliver_subject: string;
+  "deliver_subject": string;
 }
 
 export interface Consumer {
-  stream_name: string;
+  "stream_name": string;
   config: ConsumerConfig;
 }
 
@@ -499,27 +499,8 @@ export function pushConsumer(
   return { stream_name: stream, config: c };
 }
 
-// export function pullConsumer(
-//   stream: string,
-//   durable: string,
-//   pull: number,
-//   cfg: Partial<ConsumerConfig> = {},
-// ): Consumer {
-//   cfg.durable_name = durable;
-//   cfg.max_deliver = pull;
-// }
-//
-// export type PullFn = (n: number) => void;
-// export function pull(sub: Subscription, n: number): Promise<void> {
-//   const {js_info} = sub;
-//   if (!js_info) {
-//     throw new Error("not a jetstream subscription");
-//   }
-//
-// }
-
 export interface CreateConsumerRequest {
-  stream_name: string;
+  "stream_name": string;
   config: Partial<ConsumerConfig>;
 }
 
@@ -557,11 +538,11 @@ export class StreamMsgImpl implements StreamMsg {
   }
 
   _parse(s: string): Uint8Array {
-    const binary_string = window.atob(s);
-    const len = binary_string.length;
+    const bs = window.atob(s);
+    const len = bs.length;
     const bytes = new Uint8Array(len);
     for (let i = 0; i < len; i++) {
-      bytes[i] = binary_string.charCodeAt(i);
+      bytes[i] = bs.charCodeAt(i);
     }
     return bytes;
   }
@@ -588,22 +569,22 @@ export enum ReplayPolicy {
 }
 
 export interface ConsumerInfo {
-  stream_name: string;
+  "stream_name": string;
   name: string;
   created: number;
   config: ConsumerConfig;
   delivered: SequencePair;
-  ack_floor: SequencePair;
-  num_ack_pending: number;
-  num_redelivered: number;
-  num_waiting: number;
-  num_pending: number;
+  "ack_floor": SequencePair;
+  "num_ack_pending": number;
+  "num_redelivered": number;
+  "num_waiting": number;
+  "num_pending": number;
   cluster?: ClusterInfo;
 }
 
 export interface SequencePair {
-  consumer_seq: number;
-  stream_seq: number;
+  "consumer_seq": number;
+  "stream_seq": number;
 }
 
 export interface Lister<T> {
@@ -620,10 +601,10 @@ export interface AccountInfo {
 export interface AccountInfoResponse extends ApiResponse, AccountInfo {}
 
 export interface AccountLimits {
-  max_memory: number;
-  max_storage: number;
-  max_streams: number;
-  max_consumers: number;
+  "max_memory": number;
+  "max_storage": number;
+  "max_streams": number;
+  "max_consumers": number;
 }
 
 export interface ApiError {
@@ -649,8 +630,8 @@ export interface PubAck {
   duplicate: boolean;
 }
 
-export interface PubAckResponse extends ApiResponse, PubAck {}
-export interface StreamInfoResponse extends ApiResponse, StreamInfo {}
+export type PubAckResponse = ApiResponse & PubAck;
+export type StreamInfoResponse = ApiResponse & StreamInfo;
 
 export interface JsMsg {
   redelivered: boolean;
@@ -683,8 +664,7 @@ export interface StreamNames {
   streams: string[];
 }
 
-export interface StreamNamesResponse
-  extends StreamNames, ApiResponse, ApiPaged {}
+export type StreamNamesResponse = StreamNames & ApiResponse & ApiPaged;
 
 export interface StreamNameBySubject {
   subject: string;
@@ -693,5 +673,5 @@ export interface StreamNameBySubject {
 export interface NextRequest {
   expires: number;
   batch: number;
-  no_wait: boolean;
+  "no_wait": boolean;
 }

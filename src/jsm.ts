@@ -28,7 +28,6 @@ import {
   EphemeralConsumer,
   ephemeralConsumer,
   JetStreamOptions,
-  JetStreamSubOptions,
   JetStreamSubscription,
   JetStreamSubscriptionOptions,
   JSM,
@@ -49,6 +48,9 @@ import {
   SuccessResponse,
   validateDurableName,
 } from "./jstypes.ts";
+import { ListerFieldFilter, ListerImpl } from "./jslister.ts";
+import { ApiClient } from "./jsclient.ts";
+import { ACK, toJsMsg } from "./jsmsg.ts";
 import type {
   Msg,
   NatsConnection,
@@ -58,10 +60,6 @@ import {
   QueuedIterator,
   SubscriptionImpl,
 } from "https://deno.land/x/nats/nats-base-client/internal_mod.ts";
-
-import { ListerFieldFilter, ListerImpl } from "./jslister.ts";
-import { ApiClient } from "./jsclient.ts";
-import { ACK, toJsMsg } from "./jsmsg.ts";
 
 export const StreamNameRequired = "stream name required";
 export const ConsumerNameRequired = "consumer name required";
@@ -299,7 +297,7 @@ class ConsumerAPIImpl extends ApiClient implements ConsumerAPI {
       batch: 1,
     },
   ): void {
-    type po = { batch: number; expires?: string; no_wait?: boolean };
+    type po = { batch: number; expires?: string; "no_wait"?: boolean };
     const batch = opts.batch ? opts.batch : 1;
     const args = { batch } as po;
     if (opts.expires) {
@@ -320,7 +318,7 @@ class ConsumerAPIImpl extends ApiClient implements ConsumerAPI {
   toJetStreamSubscription(
     c: (Consumer & PushConsumer),
     attached: boolean,
-    pull: number = 0,
+    pull = 0,
   ): JetStreamSubscription {
     return {
       jsm: this,

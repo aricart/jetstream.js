@@ -66,7 +66,7 @@ Deno.test("jetstream - max ack pending", async () => {
   });
   await Promise.all(buf);
 
-  let consumers = await jsm.consumers.list(stream).next();
+  const consumers = await jsm.consumers.list(stream).next();
   assert(consumers.length === 0);
 
   const sub = await jsm.consumers.ephemeral(stream, { max_ack_pending: 10 }, {

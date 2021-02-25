@@ -54,7 +54,7 @@ Deno.test("jsm - account info", async () => {
 
 Deno.test("jsm - account not enabled", async () => {
   const conf = {
-    no_auth_user: "b",
+    "no_auth_user": "b",
     accounts: {
       A: {
         jetstream: "enabled",
@@ -96,7 +96,7 @@ Deno.test("jsm - empty stream config update fails", async () => {
   let ci = await jsm.streams.add({ name: name, subjects: [`${name}.>`] });
   assertEquals(ci!.config!.subjects!.length, 1);
 
-  const err = await assertThrowsAsync(async () => {
+  await assertThrowsAsync(async () => {
     await jsm.streams.update({} as StreamConfig);
   });
   ci!.config!.subjects!.push("foo");
