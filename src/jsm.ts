@@ -53,9 +53,11 @@ import type {
   Msg,
   NatsConnection,
   Subscription,
+} from "https://deno.land/x/nats/src/mod.ts";
+import {
+  QueuedIterator,
   SubscriptionImpl,
-} from "./nbc.ts";
-import { QueuedIterator } from "./nbc.ts";
+} from "https://deno.land/x/nats/nats-base-client/internal_mod.ts";
 
 import { ListerFieldFilter, ListerImpl } from "./jslister.ts";
 import { ApiClient } from "./jsclient.ts";
@@ -259,13 +261,31 @@ class ConsumerAPIImpl extends ApiClient implements ConsumerAPI {
     }
   }
 
+  async find(subject: string): Promise<string> {
+    const q = { subject } as StreamNameBySubject;
+    const r = await this._request(`${this.prefix}.STREAM.NAMES`, q);
+    const names = r as StreamNames;
+    if (!names.streams || names.streams.length !== 1) {
+      throw new Error("no stream matches subject");
+    }
+    return names.streams[0];
+  }
+
+  async bySubject(
+    subject: string,
+    opts: JetStreamSubscriptionOptions = {},
+  ): Promise<Subscription> {
+    const stream = await this.find(subject);
+    return this.ephemeral(stream, {}, opts);
+  }
+
   async pull(stream: string, durable: string): Promise<JsMsg> {
     const m = await this.nc.request(
-      `$JS.API.CONSUMER.MSG.NEXT.${stream}.${durable}`,
+      `${this.prefix}.CONSUMER.MSG.NEXT.${stream}.${durable}`,
       this.jc.encode({ no_wait: true, batch: 1 }),
       { noMux: true, timeout: this.timeout },
     );
-    if (m.headers && m.headers.code === 404) {
+    if (m.headers && (m.headers.code === 404 || m.headers.code === 503)) {
       throw new Error("no messages");
     }
     return toJsMsg(m);

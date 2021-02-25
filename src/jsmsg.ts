@@ -1,5 +1,10 @@
 import { DeliveryInfo, JsMsg } from "./jstypes.ts";
-import { Msg, MsgHdrs, RequestOptions, Subscription } from "./nbc.ts";
+import {
+  Msg,
+  MsgHdrs,
+  RequestOptions,
+  Subscription,
+} from "https://deno.land/x/nats/src/mod.ts";
 
 export const ACK = Uint8Array.of(43, 65, 67, 75);
 const NAK = Uint8Array.of(45, 78, 65, 75);

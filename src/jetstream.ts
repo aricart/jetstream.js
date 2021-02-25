@@ -15,7 +15,11 @@
 
 import type { JetStreamClient, JetStreamOptions, JSM } from "./jstypes.ts";
 
-import { ErrorCode, NatsConnection, NatsError } from "./nbc.ts";
+import {
+  ErrorCode,
+  NatsConnection,
+  NatsError,
+} from "https://deno.land/x/nats/src/mod.ts";
 
 import { JetStreamManagerImpl } from "./jsm.ts";
 import { JetStreamClientImpl } from "./jsclient.ts";

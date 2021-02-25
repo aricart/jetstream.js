@@ -19,11 +19,14 @@ import {
   Msg,
   MsgHdrs,
   NatsError,
-  nuid,
   Subscription,
-  SubscriptionImpl,
   SubscriptionOptions,
-} from "./nbc.ts";
+} from "https://deno.land/x/nats/src/mod.ts";
+import {
+  nuid,
+  SubscriptionImpl,
+} from "https://deno.land/x/nats/nats-base-client/internal_mod.ts";
+
 import { StreamNameRequired } from "./jsm.ts";
 import { ACK } from "./jsmsg.ts";
 
@@ -83,6 +86,11 @@ export interface ConsumerAPI {
   ephemeral(
     stream: string,
     cfg: Partial<EphemeralConsumer>,
+    opts?: JetStreamSubscriptionOptions,
+  ): Promise<Subscription>;
+
+  bySubject(
+    subject: string,
     opts?: JetStreamSubscriptionOptions,
   ): Promise<Subscription>;
 
@@ -452,12 +460,7 @@ export function defaultPushConsumer(
   deliverSubject: string,
   opts: Partial<ConsumerConfig> = {},
 ): PushConsumerConfig {
-  return Object.assign({
-    name: name,
-    deliver_policy: DeliverPolicy.All,
-    ack_policy: AckPolicy.Explicit,
-    ack_wait: ns(30 * 1000),
-    replay_policy: ReplayPolicy.Instant,
+  return Object.assign(defaultConsumer(name), {
     deliver_subject: deliverSubject,
   }, opts);
 }

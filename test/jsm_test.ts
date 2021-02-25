@@ -13,10 +13,7 @@
  * limitations under the License.
  */
 import { cleanup, initStream, JetStreamConfig, setup } from "./jstest_util.ts";
-import {
-  connect,
-  Empty,
-} from "https://raw.githubusercontent.com/nats-io/nats.deno/main/src/mod.ts";
+import { connect, Empty } from "https://deno.land/x/nats/src/mod.ts";
 import { JetStreamManager, JetstreamNotEnabled } from "../src/jetstream.ts";
 import {
   assert,
@@ -30,8 +27,12 @@ import {
   StreamConfig,
   StreamInfo,
 } from "../src/jstypes.ts";
-import { deferred, JSONCodec, nuid } from "../src/nbc.ts";
+import { JSONCodec } from "https://deno.land/x/nats/src/mod.ts";
 import { ConsumerNameRequired, StreamNameRequired } from "../src/jsm.ts";
+import {
+  deferred,
+  nuid,
+} from "https://deno.land/x/nats/nats-base-client/internal_mod.ts";
 
 Deno.test("jsm - jetstream not enabled", async () => {
   // start a regular server - no js conf

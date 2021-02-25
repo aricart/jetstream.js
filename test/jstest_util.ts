@@ -1,16 +1,18 @@
 import * as path from "https://deno.land/std@0.83.0/path/mod.ts";
-import { nuid } from "../src/nbc.ts";
 
-import { NatsServer } from "./nbc_util.ts";
+import { NatsServer } from "https://deno.land/x/nats/tests/helpers/mod.ts";
 import { JetStreamManager } from "../src/jetstream.ts";
 
 import {
   connect,
   ConnectionOptions,
   NatsConnection,
-} from "https://raw.githubusercontent.com/nats-io/nats.deno/main/src/mod.ts";
+} from "https://deno.land/x/nats/src/mod.ts";
 
-import { extend } from "../src/nbc.ts";
+import {
+  extend,
+  nuid,
+} from "https://deno.land/x/nats/nats-base-client/internal_mod.ts";
 
 export const jsopts = {
   // debug: true,

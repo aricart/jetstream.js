@@ -1,19 +1,19 @@
 import { cleanup, initStream, JetStreamConfig, setup } from "./jstest_util.ts";
 import { JetStream, JetStreamManager } from "../src/jetstream.ts";
-
+import { AckPolicy, msgID, PubAck } from "../src/jstypes.ts";
 import {
   assert,
   assertEquals,
   assertThrowsAsync,
 } from "https://deno.land/std@0.83.0/testing/asserts.ts";
-import { AckPolicy, msgID, PubAck } from "../src/jstypes.ts";
 import {
   createInbox,
-  deferred,
-  delay,
   Empty,
   StringCodec,
-} from "../src/nbc.ts";
+} from "https://deno.land/x/nats/src/mod.ts";
+import {
+  deferred,
+} from "https://deno.land/x/nats/nats-base-client/internal_mod.ts";
 import { toJsMsg } from "../src/jsmsg.ts";
 
 Deno.test("jetstream - ephemeral", async () => {
@@ -108,7 +108,7 @@ Deno.test("jetstream - pull", async () => {
 
   const jm = await jsm.consumers.pull(stream, "me");
   console.log(sc.decode(jm.data));
-  jm.respond();
+  jm.ack();
   assertEquals(jm.data, data);
 
   await cleanup(ns, nc);
