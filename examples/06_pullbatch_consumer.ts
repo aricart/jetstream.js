@@ -26,7 +26,7 @@ await jsm.consumers.add(stream, {
 });
 
 // ask for 25 messages
-let batch = jsm.consumers.pullBatch(stream, "me", { batch: 25 });
+const batch = jsm.consumers.pullBatch(stream, "me", { batch: 25 });
 await (async () => {
   for await (const m of batch) {
     console.log(m.info);

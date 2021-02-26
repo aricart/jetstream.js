@@ -16,20 +16,20 @@
 import {
   createInbox,
   Empty,
-  Msg,
+  headers,
   MsgHdrs,
-  NatsError,
   Subscription,
   SubscriptionOptions,
 } from "https://deno.land/x/nats/src/mod.ts";
 import {
+  MsgHdrsImpl,
   nuid,
   QueuedIterator,
   SubscriptionImpl,
 } from "https://deno.land/x/nats/nats-base-client/internal_mod.ts";
 
-import { StreamNameRequired } from "./jsm.ts";
 import { ACK } from "./jsmsg.ts";
+import { JetStreamPubConstraint } from "./pubopts.ts";
 
 export interface JetStreamClient {
   publish(
@@ -70,11 +70,11 @@ export interface StreamAPI {
   info(name: string): Promise<StreamInfo>;
   add(cfg: Partial<StreamConfig>): Promise<StreamInfo>;
   update(cfg: StreamConfig): Promise<StreamInfo>;
-  purge(name: string): Promise<void>;
+  purge(name: string): Promise<PurgeResponse>;
   delete(name: string): Promise<boolean>;
   list(): Lister<StreamInfo>;
   deleteMessage(name: string, seq: number): Promise<boolean>;
-  getMessage(name: string, seq: number): Promise<StreamMsg>;
+  getMessage(name: string, seq: number): Promise<StoredMsg>;
   find(subject: string): Promise<string>;
 }
 
@@ -120,14 +120,14 @@ export function autoAck(sub: Subscription) {
 
 export interface PullOptions {
   batch: number;
-  "no_wait": boolean;
-  expires: Date;
+  "no_wait": boolean; // no default here
+  expires: Date; // duration - min is 10s
 }
 
 export interface JSM {
   consumers: ConsumerAPI;
   streams: StreamAPI;
-  getAccountInfo(): Promise<AccountInfo>;
+  getAccountInfo(): Promise<JetStreamAccountStats>;
   advisories(): AsyncIterable<Advisory>;
 }
 
@@ -136,38 +136,11 @@ export interface JetStreamPublishConstraints {
   lid?: string; // expected last message id
   str?: string; // stream name
   seq?: number; // expected last sequence
+  ttl?: number; // max wait
 }
 
 export interface JetStreamSubscriptionOptions extends SubscriptionOptions {
   manualAcks?: boolean;
-}
-
-export type JetStreamPubConstraint = (
-  opts: JetStreamPublishConstraints,
-) => void;
-
-export function expectLastMsgID(id: string): JetStreamPubConstraint {
-  return (opts: JetStreamPublishConstraints) => {
-    opts.lid = id;
-  };
-}
-
-export function expectLastSequence(seq: number): JetStreamPubConstraint {
-  return (opts: JetStreamPublishConstraints) => {
-    opts.seq = seq;
-  };
-}
-
-export function expectStream(stream: string): JetStreamPubConstraint {
-  return (opts: JetStreamPublishConstraints) => {
-    opts.str = stream;
-  };
-}
-
-export function msgID(id: string): JetStreamPubConstraint {
-  return (opts: JetStreamPublishConstraints) => {
-    opts.id = id;
-  };
 }
 
 export interface JetStreamSubOptions extends SubscriptionOptions {
@@ -179,150 +152,91 @@ export interface JetStreamSubOptions extends SubscriptionOptions {
   cfg?: ConsumerConfig;
 }
 
-export interface JetStreamSubOpts {
-  name: string;
-  stream: string;
-  consumer: string;
-  pull: number;
-  mack: boolean;
-  cfg: ConsumerConfig;
-  queue?: string;
-  callback?: (err: (NatsError | null), msg: Msg) => void;
-  max?: number;
+export function validateDurableName(name?: string) {
+  return validateName("durable", name);
 }
 
-export type JetStreamSubOption = (opts: JetStreamSubOpts) => void;
+export function validateStreamName(name?: string) {
+  return validateName("stream", name);
+}
 
-export function validateDurableName(name: string) {
+function validateName(context: string, name = "") {
   if (name === "") {
-    throw Error("name is required");
+    throw Error(`${context} name required`);
   }
   const bad = [".", "*", ">"];
   bad.forEach((v) => {
     if (name.indexOf(v) !== -1) {
-      throw Error(`invalid durable name - durable name cannot contain '${v}'`);
+      throw Error(
+        `invalid ${context} name - ${context} name cannot contain '${v}'`,
+      );
     }
   });
 }
 
-export function durable(name: string): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    validateDurableName(name);
-    opts.cfg.durable_name = name;
-  };
+export interface ApiError {
+  code: number;
+  description: string;
 }
 
-export function attach(deliverSubject: string): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.cfg.deliver_subject = deliverSubject;
-  };
+export interface ApiResponse {
+  type: string;
+  error?: ApiError;
 }
 
-export function pull(batchSize: number): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    if (batchSize <= 0) {
-      throw new Error("batchsize must be greater than 0");
-    }
-    opts.pull = batchSize;
-  };
+export interface ApiPaged {
+  total: number;
+  offset: number;
+  limit: number;
 }
 
-export function pullDirect(
-  stream: string,
-  consumer: string,
-  batchSize: number,
-): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.stream = stream;
-    opts.consumer = consumer;
-    pull(batchSize)(opts);
-  };
+export interface ApiPagedRequest {
+  offset: number;
 }
 
-export function deliverAll(): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.cfg.deliver_policy = DeliverPolicy.All;
-  };
-}
-
-export function deliverLast(): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.cfg.deliver_policy = DeliverPolicy.Last;
-  };
-}
-
-export function deliverNew(): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.cfg.deliver_policy = DeliverPolicy.New;
-  };
-}
-
-export function startSequence(seq: number): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.cfg.deliver_policy = DeliverPolicy.ByStartSequence;
-    opts.cfg.opt_start_seq = seq;
-  };
-}
-
-export function startTime(nanos: number): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.cfg.deliver_policy = DeliverPolicy.ByStartTime;
-    opts.cfg.opt_start_seq = nanos;
-  };
-}
-
-export function manualAck(): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.mack = true;
-  };
-}
-
-export function ackNone(): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.cfg.ack_policy = AckPolicy.None;
-  };
-}
-
-export function ackAll(): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.cfg.ack_policy = AckPolicy.All;
-  };
-}
-
-export function ackExplicit(): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.cfg.ack_policy = AckPolicy.Explicit;
-  };
-}
-
-export function ns(millis: number) {
-  return millis * 1000000;
-}
-
-export function ms(ns: number) {
-  return ns / 1000000;
-}
-
-export interface JetStreamOptions {
-  apiPrefix?: string;
-  timeout?: number;
+// FIXME: sources and mirrors
+export interface StreamInfo {
+  config: StreamConfig;
+  created: number; // in ns
+  state: StreamState;
+  cluster?: ClusterInfo;
+  mirror?: StreamSourceInfo;
+  sources?: StreamSourceInfo[];
 }
 
 export interface StreamConfig {
   name: string;
-  subjects: string[];
+  subjects?: string[];
   retention: RetentionPolicy;
   "max_consumers": number;
   "max_msgs": number;
   "max_bytes": number;
-  discard: DiscardPolicy;
+  discard?: DiscardPolicy;
   "max_age": number;
-  "max_msg_size": number;
+  "max_msg_size"?: number;
   storage: StorageType;
   "num_replicas": number;
-  "no_ack": boolean;
-  "duplicate_window": number;
+  "no_ack"?: boolean;
+  "template_owner"?: string;
+  "duplicate_window"?: number; // duration
+  placement?: Placement;
+  mirror?: StreamSource; // same as a source
+  sources?: StreamSource[];
 }
+
+export interface StreamSource {
+  name: string;
+  "opt_start_seq": number;
+  "opt_start_time": string;
+  "filter_subject": string;
+}
+
+export interface Placement {
+  cluster: string;
+  tags: string[];
+}
+
+export type Mirror = StreamSource;
 
 export enum RetentionPolicy {
   Limits = "limits",
@@ -330,21 +244,16 @@ export enum RetentionPolicy {
   WorkQueue = "workqueue",
 }
 
+// default is old
 export enum DiscardPolicy {
   Old = "old",
   New = "new",
 }
 
+// default is file
 export enum StorageType {
   File = "file",
   Memory = "memory",
-}
-
-export interface StreamInfo {
-  config: StreamConfig;
-  created: number; // in ns
-  state: StreamState;
-  cluster?: ClusterInfo;
 }
 
 export interface StreamState {
@@ -354,7 +263,14 @@ export interface StreamState {
   "first_ts": number;
   "last_seq": number;
   "last_ts": string;
+  deleted: number[];
+  lost: LostStreamData;
   "consumer_count": number;
+}
+
+export interface LostStreamData {
+  msgs: number;
+  bytes: number;
 }
 
 export interface ClusterInfo {
@@ -366,17 +282,20 @@ export interface ClusterInfo {
 export interface PeerInfo {
   name: string;
   current: boolean;
+  offline: boolean;
   active: number; //ns
+  lag: number;
 }
 
-export interface PagedOffset {
-  offset: number;
+export interface StreamSourceInfo {
+  name: string;
+  lag: number;
+  active: number;
+  error?: ApiError;
 }
 
-export interface ApiPaged {
-  total: number;
-  offset: number;
-  limit: number;
+export interface PurgeResponse extends Success {
+  purged: number;
 }
 
 export interface ConsumerListResponse extends ApiResponse, ApiPaged {
@@ -387,9 +306,11 @@ export interface StreamListResponse extends ApiResponse, ApiPaged {
   streams: StreamInfo[];
 }
 
-export interface SuccessResponse extends ApiResponse {
+export interface Success {
   success: boolean;
 }
+
+export type SuccessResponse = ApiResponse & Success;
 
 export interface EphemeralConsumer {
   name: string;
@@ -472,13 +393,12 @@ export function defaultPushConsumer(
   }, opts);
 }
 
+// FIXME: need to health check them to prevent stall
 export function ephemeralConsumer(
   stream: string,
   cfg: Partial<ConsumerConfig> = {},
 ): PushConsumer {
-  if (!stream) {
-    throw new Error(StreamNameRequired);
-  }
+  validateStreamName(stream);
   if (cfg.durable_name) {
     throw new Error("ephemeral subscribers cannot be durable");
   }
@@ -492,9 +412,7 @@ export function pushConsumer(
   stream: string,
   cfg: Partial<ConsumerConfig> = {},
 ): Consumer {
-  if (!stream) {
-    throw new Error(StreamNameRequired);
-  }
+  validateStreamName(stream);
   if (!cfg.durable_name) {
     throw new Error("durable_name is required");
   }
@@ -515,33 +433,46 @@ export interface MsgRequest {
   seq: number;
 }
 
+export interface MsgDeleteRequest extends MsgRequest {
+  "no_erase"?: boolean;
+}
+
 export interface StreamMsgResponse extends ApiResponse {
   message: {
     subject: string;
     seq: number;
     data: string;
+    hdrs: string;
     time: string;
   };
 }
 
-export interface StreamMsg {
+export interface StoredMsg {
   subject: string;
   seq: number;
+  header?: MsgHdrs;
   data: Uint8Array;
   time: Date;
 }
 
-export class StreamMsgImpl implements StreamMsg {
+export class StoredMsgImpl implements StoredMsg {
   subject: string;
   seq: number;
   data: Uint8Array;
   time: Date;
+  header?: MsgHdrs;
 
   constructor(smr: StreamMsgResponse) {
     this.subject = smr.message.subject;
     this.seq = smr.message.seq;
     this.time = new Date(smr.message.time);
     this.data = smr.message.data === "" ? Empty : this._parse(smr.message.data);
+    if (smr.message.hdrs) {
+      const hd = this._parse(smr.message.hdrs);
+      this.header = MsgHdrsImpl.decode(hd);
+    } else {
+      this.header = headers();
+    }
   }
 
   _parse(s: string): Uint8Array {
@@ -598,30 +529,28 @@ export interface Lister<T> {
   next(): Promise<T[]>;
 }
 
-export interface AccountInfo {
+export interface JetStreamAccountStats {
   memory: number;
   storage: number;
   streams: number;
+  consumers: number;
+  api: JetStreamApiStats;
   limits: AccountLimits;
 }
 
-export interface AccountInfoResponse extends ApiResponse, AccountInfo {}
+export interface JetStreamApiStats {
+  total: number;
+  errors: number;
+}
+
+export interface AccountInfoResponse
+  extends ApiResponse, JetStreamAccountStats {}
 
 export interface AccountLimits {
   "max_memory": number;
   "max_storage": number;
   "max_streams": number;
   "max_consumers": number;
-}
-
-export interface ApiError {
-  code: number;
-  description: string;
-}
-
-export interface ApiResponse {
-  type: string;
-  error?: ApiError;
 }
 
 export enum PubHeaders {
@@ -681,4 +610,17 @@ export interface NextRequest {
   expires: number;
   batch: number;
   "no_wait": boolean;
+}
+
+export function ns(millis: number) {
+  return millis * 1000000;
+}
+
+export function ms(ns: number) {
+  return ns / 1000000;
+}
+
+export interface JetStreamOptions {
+  apiPrefix?: string;
+  timeout?: number;
 }

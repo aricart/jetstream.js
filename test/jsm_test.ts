@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 import { cleanup, initStream, JetStreamConfig, setup } from "./jstest_util.ts";
-import { connect, Empty } from "https://deno.land/x/nats/src/mod.ts";
+import { connect, Empty, headers } from "https://deno.land/x/nats/src/mod.ts";
 import { JetStreamManager, JetstreamNotEnabled } from "../src/jetstream.ts";
 import {
   assert,
@@ -28,11 +28,13 @@ import {
   StreamInfo,
 } from "../src/jstypes.ts";
 import { JSONCodec } from "https://deno.land/x/nats/src/mod.ts";
-import { ConsumerNameRequired, StreamNameRequired } from "../src/jsm.ts";
 import {
   deferred,
   nuid,
 } from "https://deno.land/x/nats/nats-base-client/internal_mod.ts";
+
+const StreamNameRequired = "stream name required";
+const ConsumerNameRequired = "durable name required";
 
 Deno.test("jsm - jetstream not enabled", async () => {
   // start a regular server - no js conf
@@ -378,7 +380,9 @@ Deno.test("jsm - get message", async () => {
   const { stream, subj } = await initStream(nc);
 
   const jc = JSONCodec();
-  nc.publish(subj, jc.encode(1));
+  const h = headers();
+  h.set("xxx", "a");
+  nc.publish(subj, jc.encode(1), { headers: h });
   nc.publish(subj, jc.encode(2));
 
   const jsm = await JetStreamManager(nc);

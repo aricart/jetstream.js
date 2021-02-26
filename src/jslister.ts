@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-import { ApiPaged, Lister, PagedOffset } from "./jstypes.ts";
-import { ApiClient } from "./jsclient.ts";
+import { ApiPaged, ApiPagedRequest, Lister } from "./jstypes.ts";
+import { BaseApiClient } from "./base_api.ts";
 
 export type ListerFieldFilter<T> = (v: unknown) => T[];
 
@@ -23,13 +23,13 @@ export class ListerImpl<T> implements Lister<T> {
   offset: number;
   pageInfo: ApiPaged;
   subject: string;
-  jsm: ApiClient;
+  jsm: BaseApiClient;
   filter: ListerFieldFilter<T>;
 
   constructor(
     subject: string,
     filter: ListerFieldFilter<T>,
-    jsm: ApiClient,
+    jsm: BaseApiClient,
   ) {
     if (!subject) {
       throw new Error("subject is required");
@@ -49,7 +49,7 @@ export class ListerImpl<T> implements Lister<T> {
       return [];
     }
 
-    const offset = { offset: this.offset } as PagedOffset;
+    const offset = { offset: this.offset } as ApiPagedRequest;
     try {
       const r = await this.jsm._request(
         this.subject,

@@ -1,6 +1,7 @@
 import { cleanup, initStream, JetStreamConfig, setup } from "./jstest_util.ts";
 import { JetStream, JetStreamManager } from "../src/jetstream.ts";
-import { AckPolicy, JsMsg, msgID, PubAck } from "../src/jstypes.ts";
+import { AckPolicy, JsMsg, PubAck } from "../src/jstypes.ts";
+import { msgID } from "../src/pubopts.ts";
 import {
   assert,
   assertEquals,
@@ -89,7 +90,7 @@ Deno.test("jetstream - max ack pending", async () => {
 });
 
 Deno.test("jetstream - pull", async () => {
-  const { ns, nc } = await setup(JetStreamConfig({}, true), { debug: true });
+  const { ns, nc } = await setup(JetStreamConfig({}, true));
   const { stream, subj } = await initStream(nc);
   const jsm = await JetStreamManager(nc);
   await jsm.consumers.add(stream, {
@@ -116,7 +117,7 @@ Deno.test("jetstream - pull", async () => {
 });
 
 Deno.test("jetstream - fetch", async () => {
-  const { ns, nc } = await setup(JetStreamConfig({}, true), { debug: true });
+  const { ns, nc } = await setup(JetStreamConfig({}, true));
   const { stream, subj } = await initStream(nc);
   const jsm = await JetStreamManager(nc);
 
@@ -135,7 +136,7 @@ Deno.test("jetstream - fetch", async () => {
         noMessages.resolve();
       } else {
         m.respond();
-        sub.unsubscribe().then().catch();
+        sub.unsubscribe();
       }
     }
   })();
@@ -174,7 +175,7 @@ Deno.test("jetstream - pull batch none", async () => {
   });
 
   const batch = jsm.consumers.pullBatch(stream, "me", { batch: 10 });
-  let done = (async () => {
+  const done = (async () => {
     for await (const m of batch) {
       console.log(m.info);
       fail("expected no messages");
@@ -200,7 +201,7 @@ Deno.test("jetstream - pull batch some", async () => {
 
   const batch = jsm.consumers.pullBatch(stream, "me", { batch: 10 });
   const msgs: JsMsg[] = [];
-  let done = (async () => {
+  const done = (async () => {
     for await (const m of batch) {
       msgs.push(m);
       m.ack();
@@ -229,7 +230,7 @@ Deno.test("jetstream - pull batch more", async () => {
 
   const batch = jsm.consumers.pullBatch(stream, "me", { batch: 5 });
   const msgs: JsMsg[] = [];
-  let done = (async () => {
+  const done = (async () => {
     for await (const m of batch) {
       msgs.push(m);
       m.ack();

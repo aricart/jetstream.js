@@ -22,7 +22,7 @@ import {
 } from "https://deno.land/x/nats/src/mod.ts";
 
 import { JetStreamManagerImpl } from "./jsm.ts";
-import { JetStreamClientImpl } from "./jsclient.ts";
+import { JetStreamClientImpl } from "./base_api.ts";
 
 export const defaultPrefix = "$JS.API";
 export const defaultTimeout = 5000;

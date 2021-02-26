@@ -41,7 +41,7 @@ export async function setup(
   clientOpts?: Partial<ConnectionOptions>,
 ): Promise<{ ns: NatsServer; nc: NatsConnection }> {
   const dt = serverConf as { debug: boolean; trace: boolean };
-  const debug = dt.debug || dt.trace;
+  const debug = dt && (dt.debug || dt.trace);
   const ns = await NatsServer.start(serverConf, debug);
   clientOpts = clientOpts ? clientOpts : {};
   const copts = extend({ port: ns.port }, clientOpts) as ConnectionOptions;

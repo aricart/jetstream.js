@@ -37,14 +37,16 @@ import {
   ApiResponse,
   JetStreamClient,
   JetStreamOptions,
-  JetStreamPubConstraint,
   JetStreamPublishConstraints,
   PubAck,
   PubAckResponse,
   PubHeaders,
+  StreamNameBySubject,
+  StreamNames,
 } from "./jstypes.ts";
+import { JetStreamPubConstraint } from "./pubopts.ts";
 
-export class ApiClient {
+export class BaseApiClient {
   nc: NatsConnection;
   opts: JetStreamOptions;
   prefix: string;
@@ -94,6 +96,16 @@ export class ApiClient {
     return this.parseJsResponse(m);
   }
 
+  async findStream(subject: string): Promise<string> {
+    const q = { subject } as StreamNameBySubject;
+    const r = await this._request(`${this.prefix}.STREAM.NAMES`, q);
+    const names = r as StreamNames;
+    if (!names.streams || names.streams.length !== 1) {
+      throw new Error("no stream matches subject");
+    }
+    return names.streams[0];
+  }
+
   parseJsResponse(m: Msg): unknown {
     const v = this.jc.decode(m.data);
     const r = v as ApiResponse;
@@ -111,7 +123,8 @@ export class ApiClient {
   }
 }
 //
-export class JetStreamClientImpl extends ApiClient implements JetStreamClient {
+export class JetStreamClientImpl extends BaseApiClient
+  implements JetStreamClient {
   constructor(nc: NatsConnection, opts?: JetStreamOptions) {
     super(nc, opts);
   }
@@ -141,9 +154,10 @@ export class JetStreamClientImpl extends ApiClient implements JetStreamClient {
       }
     }
 
+    const to = o.ttl ?? this.timeout;
     const ro = {} as RequestOptions;
-    if (this.timeout) {
-      ro.timeout = this.timeout;
+    if (to) {
+      ro.timeout = to;
     }
     if (options) {
       ro.headers = mh;
