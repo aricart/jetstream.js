@@ -21,17 +21,13 @@ import {
   assertThrows,
   assertThrowsAsync,
 } from "https://deno.land/std@0.83.0/testing/asserts.ts";
-import {
-  AckPolicy,
-  AdvisoryKind,
-  StreamConfig,
-  StreamInfo,
-} from "../src/jstypes.ts";
+
 import { JSONCodec } from "https://deno.land/x/nats/src/mod.ts";
 import {
   deferred,
   nuid,
 } from "https://deno.land/x/nats/nats-base-client/internal_mod.ts";
+import { AdvisoryKind, StreamConfig, StreamInfo } from "../src/types.ts";
 
 const StreamNameRequired = "stream name required";
 const ConsumerNameRequired = "durable name required";
@@ -314,12 +310,12 @@ Deno.test("jsm - consumer info", async () => {
   const jsm = await JetStreamManager(nc);
   await jsm.consumers.add(
     stream,
-    { durable_name: "dur", ack_policy: AckPolicy.Explicit },
+    { durable_name: "dur", ack_policy: "explicit" },
   );
   const ci = await jsm.consumers.info(stream, "dur");
   assertEquals(ci.name, "dur");
   assertEquals(ci.config.durable_name, "dur");
-  assertEquals(ci.config.ack_policy, AckPolicy.Explicit);
+  assertEquals(ci.config.ack_policy, "explicit");
   await cleanup(ns, nc);
 });
 
@@ -348,7 +344,7 @@ Deno.test("jsm - lister", async () => {
   const jsm = await JetStreamManager(nc);
   await jsm.consumers.add(
     stream,
-    { durable_name: "dur", ack_policy: AckPolicy.Explicit },
+    { durable_name: "dur", ack_policy: "explicit" },
   );
   let consumers = await jsm.consumers.list(stream).next();
   assertEquals(consumers.length, 1);

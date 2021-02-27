@@ -13,16 +13,16 @@
  * limitations under the License.
  */
 
-import type { JetStreamClient, JetStreamOptions, JSM } from "./jstypes.ts";
+import type { JetStreamClient, JetStreamOptions } from "./jstypes.ts";
 
 import {
   ErrorCode,
   NatsConnection,
   NatsError,
 } from "https://deno.land/x/nats/src/mod.ts";
-
+import { JetStreamClientImpl } from "./jsclient.ts";
+import { JSM } from "./jstypes.ts";
 import { JetStreamManagerImpl } from "./jsm.ts";
-import { JetStreamClientImpl } from "./base_api.ts";
 
 export const defaultPrefix = "$JS.API";
 export const defaultTimeout = 5000;

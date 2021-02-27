@@ -13,10 +13,14 @@
  * limitations under the License.
  */
 
-import { ApiPaged, ApiPagedRequest, Lister } from "./jstypes.ts";
 import { BaseApiClient } from "./base_api.ts";
+import { ApiPaged, ApiPagedRequest } from "./types.ts";
 
 export type ListerFieldFilter<T> = (v: unknown) => T[];
+
+export interface Lister<T> {
+  next(): Promise<T[]>;
+}
 
 export class ListerImpl<T> implements Lister<T> {
   err?: Error;

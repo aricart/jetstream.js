@@ -1,7 +1,6 @@
 import * as path from "https://deno.land/std@0.83.0/path/mod.ts";
 
 import { NatsServer } from "https://deno.land/x/nats/tests/helpers/mod.ts";
-import { JetStreamManager } from "../src/jetstream.ts";
 
 import {
   connect,
@@ -13,6 +12,7 @@ import {
   extend,
   nuid,
 } from "https://deno.land/x/nats/nats-base-client/internal_mod.ts";
+import { JetStreamManager } from "../src/jetstream.ts";
 
 export const jsopts = {
   // debug: true,

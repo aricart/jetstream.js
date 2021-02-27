@@ -16,7 +16,6 @@
 import {
   defaultPrefix,
   defaultTimeout,
-  InvalidJestreamAck,
   JetstreamNotEnabled,
 } from "./jetstream.ts";
 
@@ -25,26 +24,14 @@ import type {
   NatsConnection,
   RequestOptions,
 } from "https://deno.land/x/nats/src/mod.ts";
-
 import {
   Empty,
-  headers,
   JSONCodec,
   Msg,
   NatsError,
 } from "https://deno.land/x/nats/src/mod.ts";
-import {
-  ApiResponse,
-  JetStreamClient,
-  JetStreamOptions,
-  JetStreamPublishConstraints,
-  PubAck,
-  PubAckResponse,
-  PubHeaders,
-  StreamNameBySubject,
-  StreamNames,
-} from "./jstypes.ts";
-import { JetStreamPubConstraint } from "./pubopts.ts";
+import { JetStreamOptions } from "./jstypes.ts";
+import { ApiResponse, StreamNameBySubject, StreamNames } from "./types.ts";
 
 export class BaseApiClient {
   nc: NatsConnection;
@@ -120,55 +107,5 @@ export class BaseApiClient {
       throw new NatsError(r.error.description, `${r.error.code}`);
     }
     return v;
-  }
-}
-//
-export class JetStreamClientImpl extends BaseApiClient
-  implements JetStreamClient {
-  constructor(nc: NatsConnection, opts?: JetStreamOptions) {
-    super(nc, opts);
-  }
-
-  async publish(
-    subj: string,
-    data: Uint8Array,
-    ...options: JetStreamPubConstraint[]
-  ): Promise<PubAck> {
-    const o = {} as JetStreamPublishConstraints;
-    const mh = headers();
-    if (options) {
-      options.forEach((fn) => {
-        fn(o);
-      });
-      if (o.id) {
-        mh.set(PubHeaders.MsgIdHdr, o.id);
-      }
-      if (o.lid) {
-        mh.set(PubHeaders.ExpectedLastMsgIdHdr, o.lid);
-      }
-      if (o.str) {
-        mh.set(PubHeaders.ExpectedStreamHdr, o.str);
-      }
-      if (o.seq && o.seq > 0) {
-        mh.set(PubHeaders.ExpectedLastSeqHdr, `${o.seq}`);
-      }
-    }
-
-    const to = o.ttl ?? this.timeout;
-    const ro = {} as RequestOptions;
-    if (to) {
-      ro.timeout = to;
-    }
-    if (options) {
-      ro.headers = mh;
-    }
-
-    const r = await this.nc.request(subj, data, ro);
-    const pa = this.parseJsResponse(r) as PubAckResponse;
-    if (pa.stream === "") {
-      throw NatsError.errorForCode(InvalidJestreamAck);
-    }
-    pa.duplicate = pa.duplicate ? pa.duplicate : false;
-    return pa;
   }
 }

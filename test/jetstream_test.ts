@@ -1,7 +1,6 @@
 import { cleanup, initStream, JetStreamConfig, setup } from "./jstest_util.ts";
 import { JetStream, JetStreamManager } from "../src/jetstream.ts";
-import { AckPolicy, JsMsg, PubAck } from "../src/jstypes.ts";
-import { msgID } from "../src/pubopts.ts";
+import { PubAck } from "../src/jstypes.ts";
 import {
   assert,
   assertEquals,
@@ -16,7 +15,8 @@ import {
 import {
   deferred,
 } from "https://deno.land/x/nats/nats-base-client/internal_mod.ts";
-import { toJsMsg } from "../src/jsmsg.ts";
+import { JsMsg, toJsMsg } from "../src/jsmsg.ts";
+import { msgID } from "../src/jsclient.ts";
 
 Deno.test("jetstream - ephemeral", async () => {
   const { ns, nc } = await setup(JetStreamConfig({}, true));
@@ -95,7 +95,7 @@ Deno.test("jetstream - pull", async () => {
   const jsm = await JetStreamManager(nc);
   await jsm.consumers.add(stream, {
     durable_name: "me",
-    ack_policy: AckPolicy.Explicit,
+    ack_policy: "explicit",
   });
 
   const err = await assertThrowsAsync(async () => {
@@ -123,7 +123,7 @@ Deno.test("jetstream - fetch", async () => {
 
   await jsm.consumers.add(stream, {
     durable_name: "me",
-    ack_policy: AckPolicy.Explicit,
+    ack_policy: "explicit",
   });
 
   const noMessages = deferred();
@@ -171,7 +171,7 @@ Deno.test("jetstream - pull batch none", async () => {
   const jsm = await JetStreamManager(nc);
   await jsm.consumers.add(stream, {
     durable_name: "me",
-    ack_policy: AckPolicy.Explicit,
+    ack_policy: "explicit",
   });
 
   const batch = jsm.consumers.pullBatch(stream, "me", { batch: 10 });
@@ -192,7 +192,7 @@ Deno.test("jetstream - pull batch some", async () => {
   const jsm = await JetStreamManager(nc);
   await jsm.consumers.add(stream, {
     durable_name: "me",
-    ack_policy: AckPolicy.Explicit,
+    ack_policy: "explicit",
   });
 
   const sc = StringCodec();
@@ -218,7 +218,7 @@ Deno.test("jetstream - pull batch more", async () => {
   const jsm = await JetStreamManager(nc);
   await jsm.consumers.add(stream, {
     durable_name: "me",
-    ack_policy: AckPolicy.Explicit,
+    ack_policy: "explicit",
   });
 
   const sc = StringCodec();

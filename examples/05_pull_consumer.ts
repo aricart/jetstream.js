@@ -1,6 +1,6 @@
 import { connect } from "https://deno.land/x/nats/src/mod.ts";
-import { JetStreamManager } from "../src/jetstream.ts";
-import { AckPolicy } from "../src/jstypes.ts";
+import { AckPolicy } from "../src/types.ts";
+import { JetStreamManager } from "../src/jsm.ts";
 
 const nc = await connect();
 

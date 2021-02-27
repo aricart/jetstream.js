@@ -14,24 +14,34 @@
  */
 
 import { BaseApiClient } from "./base_api.ts";
+import { JetStreamOptions, StreamAPI } from "./jstypes.ts";
+import { Lister, ListerFieldFilter, ListerImpl } from "./jslister.ts";
 import {
-  JetStreamOptions,
-  Lister,
+  Empty,
+  headers,
+  MsgHdrs,
+  NatsConnection,
+} from "https://deno.land/x/nats@v1.0.0-rc4/nats-base-client/mod.ts";
+import {
   MsgDeleteRequest,
   MsgRequest,
   PurgeResponse,
-  StoredMsg,
-  StoredMsgImpl,
-  StreamAPI,
   StreamConfig,
   StreamInfo,
   StreamListResponse,
   StreamMsgResponse,
   SuccessResponse,
-  validateStreamName,
-} from "./jstypes.ts";
-import { ListerFieldFilter, ListerImpl } from "./jslister.ts";
-import { NatsConnection } from "https://deno.land/x/nats@v1.0.0-rc4/nats-base-client/mod.ts";
+} from "./types.ts";
+import { MsgHdrsImpl } from "https://deno.land/x/nats@v1.0.0-rc4/nats-base-client/internal_mod.ts";
+import { validateStreamName } from "./util.ts";
+
+export interface StoredMsg {
+  subject: string;
+  seq: number;
+  header?: MsgHdrs;
+  data: Uint8Array;
+  time: Date;
+}
 
 export class StreamAPIImpl extends BaseApiClient implements StreamAPI {
   constructor(nc: NatsConnection, opts?: JetStreamOptions) {
@@ -119,5 +129,36 @@ export class StreamAPIImpl extends BaseApiClient implements StreamAPI {
 
   find(subject: string): Promise<string> {
     return this.findStream(subject);
+  }
+}
+
+export class StoredMsgImpl implements StoredMsg {
+  subject: string;
+  seq: number;
+  data: Uint8Array;
+  time: Date;
+  header?: MsgHdrs;
+
+  constructor(smr: StreamMsgResponse) {
+    this.subject = smr.message.subject;
+    this.seq = smr.message.seq;
+    this.time = new Date(smr.message.time);
+    this.data = smr.message.data === "" ? Empty : this._parse(smr.message.data);
+    if (smr.message.hdrs) {
+      const hd = this._parse(smr.message.hdrs);
+      this.header = MsgHdrsImpl.decode(hd);
+    } else {
+      this.header = headers();
+    }
+  }
+
+  _parse(s: string): Uint8Array {
+    const bs = window.atob(s);
+    const len = bs.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = bs.charCodeAt(i);
+    }
+    return bytes;
   }
 }

@@ -1,4 +1,3 @@
-import { DeliveryInfo, JsMsg, NextRequest } from "./jstypes.ts";
 import {
   DataBuffer,
   JSONCodec,
@@ -6,6 +5,7 @@ import {
   MsgHdrs,
   RequestOptions,
 } from "https://deno.land/x/nats/nats-base-client/internal_mod.ts";
+import { NextRequest } from "./types.ts";
 
 export const ACK = Uint8Array.of(43, 65, 67, 75);
 const NAK = Uint8Array.of(45, 78, 65, 75);
@@ -13,6 +13,33 @@ const WPI = Uint8Array.of(43, 87, 80, 73);
 const NXT = Uint8Array.of(43, 78, 88, 84);
 const TERM = Uint8Array.of(43, 84, 69, 82, 77);
 const SPACE = Uint8Array.of(32);
+
+export interface JsMsg {
+  redelivered: boolean;
+  info: DeliveryInfo;
+  seq: number;
+  headers: MsgHdrs | undefined;
+  data: Uint8Array;
+  subject: string;
+  sid: number;
+
+  ack(): void;
+  nak(): void;
+  working(): void;
+  next(subj?: string): void;
+  term(): void;
+}
+
+export interface DeliveryInfo {
+  stream: string;
+  consumer: string;
+  redeliveryCount: number;
+  streamSequence: number;
+  deliverySequence: number;
+  timestampNanos: number;
+  pending: number;
+  redelivered: boolean;
+}
 
 export function toJsMsg(m: Msg): JsMsg {
   return new JsMsgImpl(m);

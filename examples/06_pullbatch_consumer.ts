@@ -1,7 +1,8 @@
 import { connect, StringCodec } from "https://deno.land/x/nats/src/mod.ts";
 import { nuid } from "http://deno.land/x/nats/nats-base-client/internal_mod.ts";
-import { JetStream, JetStreamManager } from "../src/jetstream.ts";
-import { AckPolicy } from "../src/jstypes.ts";
+import { JetStream } from "../src/jetstream.ts";
+import { AckPolicy } from "../src/types.ts";
+import { JetStreamManager } from "../src/jsm.ts";
 
 const nc = await connect();
 const stream = nuid.next();

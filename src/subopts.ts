@@ -13,12 +13,8 @@
  * limitations under the License.
  */
 
-import {
-  AckPolicy,
-  ConsumerConfig,
-  DeliverPolicy,
-  validateDurableName,
-} from "./jstypes.ts";
+import { AckPolicy, ConsumerConfig, DeliverPolicy } from "./types.ts";
+import { validateDurableName } from "./util.ts";
 
 export type JetStreamSubOption = (opts: JetStreamSubOpts) => void;
 

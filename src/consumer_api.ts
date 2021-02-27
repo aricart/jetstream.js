@@ -14,28 +14,9 @@
  */
 
 import { BaseApiClient } from "./base_api.ts";
-import {
-  Consumer,
-  ConsumerAPI,
-  ConsumerConfig,
-  ConsumerInfo,
-  ConsumerListResponse,
-  CreateConsumerRequest,
-  EphemeralConsumer,
-  ephemeralConsumer,
-  JetStreamOptions,
-  JetStreamSubscription,
-  JetStreamSubscriptionOptions,
-  JsMsg,
-  Lister,
-  PullOptions,
-  PushConsumer,
-  SuccessResponse,
-  validateDurableName,
-  validateStreamName,
-} from "./jstypes.ts";
-import { ListerFieldFilter, ListerImpl } from "./jslister.ts";
-import { ACK, toJsMsg } from "./jsmsg.ts";
+import { JetStreamOptions, JetStreamSubscriptionOptions } from "./jstypes.ts";
+import { Lister, ListerFieldFilter, ListerImpl } from "./jslister.ts";
+import { ACK, JsMsg, toJsMsg } from "./jsmsg.ts";
 import {
   createInbox,
   Msg,
@@ -44,6 +25,99 @@ import {
   Subscription,
   SubscriptionImpl,
 } from "https://deno.land/x/nats@v1.0.0-rc4/nats-base-client/internal_mod.ts";
+import {
+  AckPolicy,
+  Consumer,
+  ConsumerConfig,
+  ConsumerInfo,
+  ConsumerListResponse,
+  CreateConsumerRequest,
+  DeliverPolicy,
+  ReplayPolicy,
+  SuccessResponse,
+} from "./types.ts";
+import {
+  ephemeralConsumer,
+  validateDurableName,
+  validateStreamName,
+} from "./util.ts";
+
+export interface PullOptions {
+  batch: number;
+  "no_wait": boolean; // no default here
+  expires: Date; // duration - min is 10s
+}
+
+export interface ConsumerAPI {
+  info(stream: string, consumer: string): Promise<ConsumerInfo>;
+
+  add(stream: string, cfg: Partial<ConsumerConfig>): Promise<ConsumerInfo>;
+
+  delete(stream: string, consumer: string): Promise<boolean>;
+
+  list(stream: string): Lister<ConsumerInfo>;
+
+  ephemeral(
+    stream: string,
+    cfg: Partial<EphemeralConsumer>,
+    opts?: JetStreamSubscriptionOptions,
+  ): Promise<Subscription>;
+
+  bySubject(
+    subject: string,
+    opts?: JetStreamSubscriptionOptions,
+  ): Promise<Subscription>;
+
+  pull(stream: string, durable: string): Promise<JsMsg>;
+
+  fetch(
+    stream: string,
+    durable: string,
+    deliver: string,
+    opts: { batch?: number; no_wait?: boolean; expires?: Date },
+  ): void;
+
+  pullBatch(
+    stream: string,
+    durable: string,
+    opts: Partial<PullOptions>,
+  ): QueuedIterator<JsMsg>;
+}
+
+export interface EphemeralConsumer {
+  name: string;
+  "deliver_subject"?: string;
+  "deliver_policy": DeliverPolicy;
+  "opt_start_seq"?: number;
+  "opt_start_time"?: number;
+  "ack_policy": AckPolicy;
+  "ack_wait"?: number;
+  "max_deliver"?: number;
+  "filter_subject"?: string;
+  "replay_policy": ReplayPolicy;
+  "rate_limit_bps"?: number;
+  "sample_freq"?: string;
+  "max_waiting"?: number;
+  "max_ack_pending"?: number;
+}
+
+export interface PushConsumerConfig extends ConsumerConfig {
+  "deliver_subject": string;
+}
+
+export interface PushConsumer extends Consumer {
+  config: PushConsumerConfig;
+}
+
+export interface JetStreamSubscription {
+  jsm: ConsumerAPI;
+  consumer: string;
+  stream: string;
+  deliverSubject?: string;
+  pull: number;
+  durable: boolean;
+  attached: boolean;
+}
 
 export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
   constructor(nc: NatsConnection, opts?: JetStreamOptions) {
@@ -118,7 +192,7 @@ export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
         msg.respond(ACK);
       });
     }
-    sub.info = this.toJetStreamSubscription(c, true);
+    sub.info = this.setJetStreamInfo(c, true);
     try {
       await this.add(stream, c.config);
       return sub;
@@ -226,7 +300,7 @@ export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
     );
   }
 
-  toJetStreamSubscription(
+  setJetStreamInfo(
     c: (Consumer & PushConsumer),
     attached: boolean,
     pull = 0,

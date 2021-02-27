@@ -1,7 +1,8 @@
 import { connect, Empty } from "https://deno.land/x/nats/src/mod.ts";
 
-import { JetStream, JetStreamManager } from "../src/jetstream.ts";
+import { JetStream } from "../src/jetstream.ts";
 import { expectLastSequence, expectStream, msgID } from "../src/jstypes.ts";
+import { JetStreamManager } from "../src/jsm.ts";
 
 const nc = await connect();
 
