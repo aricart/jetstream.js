@@ -1,6 +1,5 @@
 import { cleanup, initStream, JetStreamConfig, setup } from "./jstest_util.ts";
 import { JetStream, JetStreamManager } from "../src/jetstream.ts";
-import { PubAck } from "../src/jstypes.ts";
 import {
   assert,
   assertEquals,
@@ -16,7 +15,7 @@ import {
   deferred,
 } from "https://deno.land/x/nats/nats-base-client/internal_mod.ts";
 import { JsMsg, toJsMsg } from "../src/jsmsg.ts";
-import { msgID } from "../src/jsclient.ts";
+import { msgID, PubAck } from "../src/jsclient.ts";
 
 Deno.test("jetstream - ephemeral", async () => {
   const { ns, nc } = await setup(JetStreamConfig({}, true));

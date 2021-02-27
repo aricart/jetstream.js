@@ -1,9 +1,9 @@
 import { connect, createInbox } from "https://deno.land/x/nats/src/mod.ts";
 import { delay } from "https://raw.githubusercontent.com/nats-io/nats.deno/main/nats-base-client/internal_mod.ts";
 
-import { autoAck } from "../src/jstypes.ts";
 import { AckPolicy } from "../src/types.ts";
 import { JetStreamManager } from "../src/jsm.ts";
+import { autoAck } from "../src/consumer_api.ts";
 
 const nc = await connect();
 

@@ -17,6 +17,7 @@ import {
   defaultPrefix,
   defaultTimeout,
   JetstreamNotEnabled,
+  JetStreamOptions,
 } from "./jetstream.ts";
 
 import type {
@@ -30,7 +31,6 @@ import {
   Msg,
   NatsError,
 } from "https://deno.land/x/nats/src/mod.ts";
-import { JetStreamOptions } from "./jstypes.ts";
 import { ApiResponse, StreamNameBySubject, StreamNames } from "./types.ts";
 
 export class BaseApiClient {

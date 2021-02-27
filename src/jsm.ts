@@ -13,11 +13,10 @@
  * limitations under the License.
  */
 
-import { JetStreamOptions, JSM, StreamAPI } from "./jstypes.ts";
 import { BaseApiClient } from "./base_api.ts";
 import type { NatsConnection } from "https://deno.land/x/nats/src/mod.ts";
 import { QueuedIterator } from "https://deno.land/x/nats/nats-base-client/internal_mod.ts";
-import { StreamAPIImpl } from "./stream_api.ts";
+import { StreamAPI, StreamAPIImpl } from "./stream_api.ts";
 import { ConsumerAPI, ConsumerAPIImpl } from "./consumer_api.ts";
 import {
   AccountInfoResponse,
@@ -26,7 +25,16 @@ import {
   ApiResponse,
   JetStreamAccountStats,
 } from "./types.ts";
-import { JetstreamNotEnabled } from "./jetstream.ts";
+import { JetStreamOptions } from "./jetstream.ts";
+
+export interface JSM {
+  consumers: ConsumerAPI;
+  streams: StreamAPI;
+
+  getAccountInfo(): Promise<JetStreamAccountStats>;
+
+  advisories(): AsyncIterable<Advisory>;
+}
 
 export class JetStreamManagerImpl extends BaseApiClient implements JSM {
   streams: StreamAPI;

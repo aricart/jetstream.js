@@ -14,8 +14,7 @@
  */
 
 import { BaseApiClient } from "./base_api.ts";
-import { JetStreamOptions, StreamAPI } from "./jstypes.ts";
-import { Lister, ListerFieldFilter, ListerImpl } from "./jslister.ts";
+import { Lister, ListerFieldFilter, ListerImpl } from "./lister.ts";
 import {
   Empty,
   headers,
@@ -34,6 +33,7 @@ import {
 } from "./types.ts";
 import { MsgHdrsImpl } from "https://deno.land/x/nats@v1.0.0-rc4/nats-base-client/internal_mod.ts";
 import { validateStreamName } from "./util.ts";
+import { JetStreamOptions } from "./jetstream.ts";
 
 export interface StoredMsg {
   subject: string;
@@ -41,6 +41,26 @@ export interface StoredMsg {
   header?: MsgHdrs;
   data: Uint8Array;
   time: Date;
+}
+
+export interface StreamAPI {
+  info(name: string): Promise<StreamInfo>;
+
+  add(cfg: Partial<StreamConfig>): Promise<StreamInfo>;
+
+  update(cfg: StreamConfig): Promise<StreamInfo>;
+
+  purge(name: string): Promise<PurgeResponse>;
+
+  delete(name: string): Promise<boolean>;
+
+  list(): Lister<StreamInfo>;
+
+  deleteMessage(name: string, seq: number): Promise<boolean>;
+
+  getMessage(name: string, seq: number): Promise<StoredMsg>;
+
+  find(subject: string): Promise<string>;
 }
 
 export class StreamAPIImpl extends BaseApiClient implements StreamAPI {

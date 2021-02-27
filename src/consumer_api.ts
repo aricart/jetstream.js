@@ -14,8 +14,7 @@
  */
 
 import { BaseApiClient } from "./base_api.ts";
-import { JetStreamOptions, JetStreamSubscriptionOptions } from "./jstypes.ts";
-import { Lister, ListerFieldFilter, ListerImpl } from "./jslister.ts";
+import { Lister, ListerFieldFilter, ListerImpl } from "./lister.ts";
 import { ACK, JsMsg, toJsMsg } from "./jsmsg.ts";
 import {
   createInbox,
@@ -24,6 +23,7 @@ import {
   QueuedIterator,
   Subscription,
   SubscriptionImpl,
+  SubscriptionOptions,
 } from "https://deno.land/x/nats@v1.0.0-rc4/nats-base-client/internal_mod.ts";
 import {
   AckPolicy,
@@ -41,11 +41,25 @@ import {
   validateDurableName,
   validateStreamName,
 } from "./util.ts";
+import { JetStreamOptions } from "./jetstream.ts";
 
 export interface PullOptions {
   batch: number;
   "no_wait": boolean; // no default here
   expires: Date; // duration - min is 10s
+}
+
+export interface JetStreamSubscriptionOptions extends SubscriptionOptions {
+  manualAcks?: boolean;
+}
+
+export interface JetStreamSubOptions extends SubscriptionOptions {
+  name?: string;
+  stream?: string;
+  consumer?: string;
+  pull?: number;
+  mack?: boolean;
+  cfg?: ConsumerConfig;
 }
 
 export interface ConsumerAPI {
@@ -315,4 +329,11 @@ export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
       attached: attached,
     } as JetStreamSubscription;
   }
+}
+
+export function autoAck(sub: Subscription) {
+  const s = sub as SubscriptionImpl;
+  s.setYieldedCb((msg) => {
+    msg.respond(ACK);
+  });
 }

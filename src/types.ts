@@ -40,7 +40,6 @@ export interface ApiPagedRequest {
   offset: number;
 }
 
-// FIXME: sources and mirrors
 export interface StreamInfo {
   config: StreamConfig;
   created: number; // in ns
