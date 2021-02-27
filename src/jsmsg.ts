@@ -4,7 +4,7 @@ import {
   Msg,
   MsgHdrs,
   RequestOptions,
-} from "https://deno.land/x/nats/nats-base-client/internal_mod.ts";
+} from "./nbc_mod.ts";
 import { NextRequest } from "./types.ts";
 
 export const ACK = Uint8Array.of(43, 65, 67, 75);

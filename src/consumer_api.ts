@@ -24,7 +24,7 @@ import {
   Subscription,
   SubscriptionImpl,
   SubscriptionOptions,
-} from "https://deno.land/x/nats@v1.0.0-rc4/nats-base-client/internal_mod.ts";
+} from "./nbc_mod.ts";
 import {
   AckPolicy,
   Consumer,
@@ -256,12 +256,12 @@ export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
       received++;
       // if we have one pending and we got the expected
       // or there are no more stop the iterator
-      if (qi.getPending() === 1 && m.info.pending === 0 || wants == received) {
+      if (qi.getPending() === 1 && m.info.pending === 0 || wants === received) {
         qi.stop();
       }
     };
     const inbox = createInbox();
-    this.nc.subscribe(inbox, {
+    const sub = this.nc.subscribe(inbox, {
       max: opts.batch,
       callback: (err, msg) => {
         if (err) {
@@ -276,6 +276,12 @@ export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
         }
       },
     });
+
+    (async () => {
+      // close the iterator if the connection or subscription closes unexpectedly
+      await (sub as SubscriptionImpl).closed;
+      qi.stop();
+    })().then().catch();
 
     this.nc.publish(
       `${this.prefix}.CONSUMER.MSG.NEXT.${stream}.${durable}`,

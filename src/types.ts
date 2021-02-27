@@ -17,7 +17,7 @@ export enum AdvisoryKind {
   StreamLeaderElected = "stream_leader_elected",
   StreamQuorumLost = "stream_quorum_lost",
   ConsumerLeaderElected = "consumer_leader_elected",
-  ConsumerQuorumLost = "onsumer_quorum_lost",
+  ConsumerQuorumLost = "consumer_quorum_lost",
 }
 
 export interface ApiError {
@@ -81,18 +81,41 @@ export interface Placement {
   tags: string[];
 }
 
-export type RetentionPolicy = "limits" | "interest" | "workqueue";
-export type DiscardPolicy = "old" | "new";
-export type StorageType = "file" | "memory";
-export type DeliverPolicy =
-  | "all"
-  | "last"
-  | "new"
-  | "by_start_sequence"
-  | "by_start_time";
-export type AckPolicy = "none" | "all" | "explicit" | "";
+export enum RetentionPolicy {
+  Limits = "limits",
+  Interest = "interest",
+  Workqueue = "workqueue",
+}
 
-export type ReplayPolicy = "instant" | "original";
+export enum DiscardPolicy {
+  Old = "old",
+  New = "new",
+}
+
+export enum StorageType {
+  File = "file",
+  Memory = "memory",
+}
+
+export enum DeliverPolicy {
+  All = "all",
+  Last = "last",
+  New = "new",
+  FromSequence = "by_start_sequence",
+  FromTime = "by_start_time",
+}
+
+export enum AckPolicy {
+  None = "none",
+  All = "all",
+  Explicit = "explicit",
+  NotSet = "",
+}
+
+export enum ReplayPolicy {
+  Instanct = "instant",
+  Original = "original",
+}
 
 export interface StreamState {
   messages: number;

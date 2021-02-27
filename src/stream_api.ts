@@ -19,8 +19,9 @@ import {
   Empty,
   headers,
   MsgHdrs,
+  MsgHdrsImpl,
   NatsConnection,
-} from "https://deno.land/x/nats@v1.0.0-rc4/nats-base-client/mod.ts";
+} from "./nbc_mod.ts";
 import {
   MsgDeleteRequest,
   MsgRequest,
@@ -31,7 +32,6 @@ import {
   StreamMsgResponse,
   SuccessResponse,
 } from "./types.ts";
-import { MsgHdrsImpl } from "https://deno.land/x/nats@v1.0.0-rc4/nats-base-client/internal_mod.ts";
 import { validateStreamName } from "./util.ts";
 import { JetStreamOptions } from "./jetstream.ts";
 

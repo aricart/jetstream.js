@@ -1,8 +1,5 @@
 import { Consumer, ConsumerConfig } from "./types.ts";
-import {
-  createInbox,
-  nuid,
-} from "https://deno.land/x/nats/nats-base-client/internal_mod.ts";
+import { createInbox, nuid } from "./nbc_mod.ts";
 import { PushConsumer, PushConsumerConfig } from "./consumer_api.ts";
 
 export function validateDurableName(name?: string) {

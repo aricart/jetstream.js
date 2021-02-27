@@ -20,7 +20,7 @@ import {
   NatsConnection,
   NatsError,
   RequestOptions,
-} from "https://deno.land/x/nats/src/mod.ts";
+} from "./nbc_mod.ts";
 import { AckPolicy, ConsumerConfig, DeliverPolicy } from "./types.ts";
 import { validateDurableName } from "./util.ts";
 
@@ -231,14 +231,14 @@ export function pullDirect(
 
 export function startSequence(seq: number): JetStreamSubOption {
   return (opts: JetStreamSubOpts) => {
-    opts.cfg.deliver_policy = DeliverPolicy.ByStartSequence;
+    opts.cfg.deliver_policy = DeliverPolicy.FromSequence;
     opts.cfg.opt_start_seq = seq;
   };
 }
 
 export function startTime(nanos: number): JetStreamSubOption {
   return (opts: JetStreamSubOpts) => {
-    opts.cfg.deliver_policy = DeliverPolicy.ByStartTime;
-    opts.cfg.opt_start_seq = nanos;
+    opts.cfg.deliver_policy = DeliverPolicy.FromTime;
+    opts.cfg.opt_start_time = nanos;
   };
 }

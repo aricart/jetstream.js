@@ -14,8 +14,8 @@
  */
 
 import { BaseApiClient } from "./base_api.ts";
-import type { NatsConnection } from "https://deno.land/x/nats/src/mod.ts";
-import { QueuedIterator } from "https://deno.land/x/nats/nats-base-client/internal_mod.ts";
+import type { NatsConnection } from "./nbc_mod.ts";
+import { QueuedIterator } from "./nbc_mod.ts";
 import { StreamAPI, StreamAPIImpl } from "./stream_api.ts";
 import { ConsumerAPI, ConsumerAPIImpl } from "./consumer_api.ts";
 import {

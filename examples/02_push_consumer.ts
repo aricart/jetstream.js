@@ -1,4 +1,4 @@
-import { connect } from "https://deno.land/x/nats/src/mod.ts";
+import { connect } from "../src/nats_deno.ts";
 import { ACK } from "../src/jsmsg.ts";
 import { AckPolicy } from "../src/types.ts";
 import { JetStreamManager } from "../src/jsm.ts";

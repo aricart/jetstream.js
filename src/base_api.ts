@@ -20,17 +20,8 @@ import {
   JetStreamOptions,
 } from "./jetstream.ts";
 
-import type {
-  Codec,
-  NatsConnection,
-  RequestOptions,
-} from "https://deno.land/x/nats/src/mod.ts";
-import {
-  Empty,
-  JSONCodec,
-  Msg,
-  NatsError,
-} from "https://deno.land/x/nats/src/mod.ts";
+import type { Codec, NatsConnection, RequestOptions } from "./nbc_mod.ts";
+import { Empty, JSONCodec, Msg, NatsError } from "./nbc_mod.ts";
 import { ApiResponse, StreamNameBySubject, StreamNames } from "./types.ts";
 
 export class BaseApiClient {

@@ -1,6 +1,5 @@
-import { connect, createInbox } from "https://deno.land/x/nats/src/mod.ts";
-import { delay } from "https://raw.githubusercontent.com/nats-io/nats.deno/main/nats-base-client/internal_mod.ts";
-
+import { connect, createInbox } from "../src/nats_deno.ts";
+import { delay } from "../src/nbc_mod.ts";
 import { AckPolicy } from "../src/types.ts";
 import { JetStreamManager } from "../src/jsm.ts";
 import { autoAck } from "../src/consumer_api.ts";

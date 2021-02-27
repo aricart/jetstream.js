@@ -6,16 +6,10 @@ import {
   assertThrowsAsync,
   fail,
 } from "https://deno.land/std@0.83.0/testing/asserts.ts";
-import {
-  createInbox,
-  Empty,
-  StringCodec,
-} from "https://deno.land/x/nats/src/mod.ts";
-import {
-  deferred,
-} from "https://deno.land/x/nats/nats-base-client/internal_mod.ts";
+import { createInbox, deferred, Empty, StringCodec } from "../src/nbc_mod.ts";
 import { JsMsg, toJsMsg } from "../src/jsmsg.ts";
 import { msgID, PubAck } from "../src/jsclient.ts";
+import { AckPolicy } from "../src/types.ts";
 
 Deno.test("jetstream - ephemeral", async () => {
   const { ns, nc } = await setup(JetStreamConfig({}, true));
@@ -94,7 +88,7 @@ Deno.test("jetstream - pull", async () => {
   const jsm = await JetStreamManager(nc);
   await jsm.consumers.add(stream, {
     durable_name: "me",
-    ack_policy: "explicit",
+    ack_policy: AckPolicy.Explicit,
   });
 
   const err = await assertThrowsAsync(async () => {
@@ -122,7 +116,7 @@ Deno.test("jetstream - fetch", async () => {
 
   await jsm.consumers.add(stream, {
     durable_name: "me",
-    ack_policy: "explicit",
+    ack_policy: AckPolicy.Explicit,
   });
 
   const noMessages = deferred();
@@ -170,7 +164,7 @@ Deno.test("jetstream - pull batch none", async () => {
   const jsm = await JetStreamManager(nc);
   await jsm.consumers.add(stream, {
     durable_name: "me",
-    ack_policy: "explicit",
+    ack_policy: AckPolicy.Explicit,
   });
 
   const batch = jsm.consumers.pullBatch(stream, "me", { batch: 10 });
@@ -191,7 +185,7 @@ Deno.test("jetstream - pull batch some", async () => {
   const jsm = await JetStreamManager(nc);
   await jsm.consumers.add(stream, {
     durable_name: "me",
-    ack_policy: "explicit",
+    ack_policy: AckPolicy.Explicit,
   });
 
   const sc = StringCodec();
@@ -217,7 +211,7 @@ Deno.test("jetstream - pull batch more", async () => {
   const jsm = await JetStreamManager(nc);
   await jsm.consumers.add(stream, {
     durable_name: "me",
-    ack_policy: "explicit",
+    ack_policy: AckPolicy.Explicit,
   });
 
   const sc = StringCodec();

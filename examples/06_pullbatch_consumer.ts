@@ -1,5 +1,5 @@
-import { connect, StringCodec } from "https://deno.land/x/nats/src/mod.ts";
-import { nuid } from "http://deno.land/x/nats/nats-base-client/internal_mod.ts";
+import { connect, StringCodec } from "../src/nats_deno.ts";
+import { nuid } from "../src/nbc_mod.ts";
 import { JetStream } from "../src/jetstream.ts";
 import { AckPolicy } from "../src/types.ts";
 import { JetStreamManager } from "../src/jsm.ts";

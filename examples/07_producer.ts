@@ -1,5 +1,4 @@
-import { connect, Empty } from "https://deno.land/x/nats/src/mod.ts";
-
+import { connect, Empty } from "../src/nats_deno.ts";
 import { JetStream } from "../src/jetstream.ts";
 import { expectLastSequence, expectStream, msgID } from "../src/jstypes.ts";
 import { JetStreamManager } from "../src/jsm.ts";

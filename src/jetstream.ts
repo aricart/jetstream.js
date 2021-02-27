@@ -13,11 +13,7 @@
  * limitations under the License.
  */
 
-import {
-  ErrorCode,
-  NatsConnection,
-  NatsError,
-} from "https://deno.land/x/nats/src/mod.ts";
+import { ErrorCode, NatsConnection, NatsError } from "./nbc_mod.ts";
 import { JetStreamClient, JetStreamClientImpl } from "./jsclient.ts";
 import { JetStreamManagerImpl, JSM } from "./jsm.ts";
 
