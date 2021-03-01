@@ -16,6 +16,7 @@
 import { InvalidJestreamAck, JetStreamOptions } from "./jetstream.ts";
 import { BaseApiClient } from "./base_api.ts";
 import {
+  Empty,
   headers,
   NatsConnection,
   NatsError,
@@ -41,7 +42,7 @@ export interface JetStreamClient {
   publish(
     subj: string,
     data: Uint8Array,
-    ...options: JetStreamPubConstraint[]
+    options?: Partial<JetStreamPublishOptions>,
   ): Promise<PubAck>;
 
   // subscribe(
@@ -59,35 +60,33 @@ export class JetStreamClientImpl extends BaseApiClient
 
   async publish(
     subj: string,
-    data: Uint8Array,
-    ...options: JetStreamPubConstraint[]
+    data: Uint8Array = Empty,
+    opts?: Partial<JetStreamPublishOptions>,
   ): Promise<PubAck> {
-    const o = {} as JetStreamPublishConstraints;
+    opts = opts ?? {};
+    opts.expect = opts.expect ?? {};
     const mh = headers();
-    if (options) {
-      options.forEach((fn) => {
-        fn(o);
-      });
-      if (o.id) {
-        mh.set(PubHeaders.MsgIdHdr, o.id);
+    if (opts) {
+      if (opts.msgID) {
+        mh.set(PubHeaders.MsgIdHdr, opts.msgID);
       }
-      if (o.lid) {
-        mh.set(PubHeaders.ExpectedLastMsgIdHdr, o.lid);
+      if (opts.expect.lastMsgID) {
+        mh.set(PubHeaders.ExpectedLastMsgIdHdr, opts.expect.lastMsgID);
       }
-      if (o.str) {
-        mh.set(PubHeaders.ExpectedStreamHdr, o.str);
+      if (opts.expect.streamName) {
+        mh.set(PubHeaders.ExpectedStreamHdr, opts.expect.streamName);
       }
-      if (o.seq && o.seq > 0) {
-        mh.set(PubHeaders.ExpectedLastSeqHdr, `${o.seq}`);
+      if (opts.expect.lastSequence) {
+        mh.set(PubHeaders.ExpectedLastSeqHdr, `${opts.expect.lastSequence}`);
       }
     }
 
-    const to = o.ttl ?? this.timeout;
+    const to = opts.timeout ?? this.timeout;
     const ro = {} as RequestOptions;
     if (to) {
       ro.timeout = to;
     }
-    if (options) {
+    if (opts) {
       ro.headers = mh;
     }
 
@@ -101,46 +100,14 @@ export class JetStreamClientImpl extends BaseApiClient
   }
 }
 
-interface JetStreamPublishConstraints {
-  id?: string;
-  lid?: string; // expected last message id
-  str?: string; // stream name
-  seq?: number; // expected last sequence
-  ttl?: number; // max wait
-}
-
-export type JetStreamPubConstraint = (
-  opts: JetStreamPublishConstraints,
-) => void;
-
-export function expectLastMsgID(id: string): JetStreamPubConstraint {
-  return (opts: JetStreamPublishConstraints) => {
-    opts.lid = id;
-  };
-}
-
-export function expectLastSequence(seq: number): JetStreamPubConstraint {
-  return (opts: JetStreamPublishConstraints) => {
-    opts.seq = seq;
-  };
-}
-
-export function expectStream(stream: string): JetStreamPubConstraint {
-  return (opts: JetStreamPublishConstraints) => {
-    opts.str = stream;
-  };
-}
-
-export function msgID(id: string): JetStreamPubConstraint {
-  return (opts: JetStreamPublishConstraints) => {
-    opts.id = id;
-  };
-}
-
-export function ttl(n: number): JetStreamPubConstraint {
-  return (opts: JetStreamPublishConstraints) => {
-    opts.ttl = n;
-  };
+interface JetStreamPublishOptions {
+  msgID: string;
+  timeout: number;
+  expect: Partial<{
+    lastMsgID: string;
+    streamName: string;
+    lastSequence: number;
+  }>;
 }
 
 export type JetStreamSubOption = (opts: JetStreamSubOpts) => void;

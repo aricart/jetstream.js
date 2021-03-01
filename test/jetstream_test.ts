@@ -8,7 +8,7 @@ import {
 } from "https://deno.land/std@0.83.0/testing/asserts.ts";
 import { createInbox, deferred, Empty, StringCodec } from "../src/nbc_mod.ts";
 import { JsMsg, toJsMsg } from "../src/jsmsg.ts";
-import { msgID, PubAck } from "../src/jsclient.ts";
+import { PubAck } from "../src/jsclient.ts";
 import { AckPolicy } from "../src/types.ts";
 
 Deno.test("jetstream - ephemeral", async () => {
@@ -36,7 +36,7 @@ Deno.test("jetstream - ephemeral", async () => {
   })();
 
   const js = await JetStream(nc);
-  const pa = await js.publish(subj, Empty, msgID("a"));
+  const pa = await js.publish(subj, Empty, { msgID: "a" });
   console.log(pa);
   assertEquals(pa.stream, stream);
   assertEquals(pa.duplicate, false);
@@ -57,7 +57,7 @@ Deno.test("jetstream - max ack pending", async () => {
   const buf: Promise<PubAck>[] = [];
   const js = await JetStream(nc);
   d.forEach((v) => {
-    buf.push(js.publish(subj, sc.encode(v), msgID(v)));
+    buf.push(js.publish(subj, sc.encode(v), { msgID: v }));
   });
   await Promise.all(buf);
 
@@ -99,7 +99,7 @@ Deno.test("jetstream - pull", async () => {
   const sc = StringCodec();
   const data = sc.encode("hello");
   const js = await JetStream(nc);
-  await js.publish(subj, data, msgID("a"));
+  await js.publish(subj, data, { msgID: "a" });
 
   const jm = await jsm.consumers.pull(stream, "me");
   console.log(sc.decode(jm.data));
@@ -140,7 +140,7 @@ Deno.test("jetstream - fetch", async () => {
   const js = await JetStream(nc);
   const sc = StringCodec();
   const data = sc.encode("hello");
-  await js.publish(subj, data, msgID("a"));
+  await js.publish(subj, data, { msgID: "a" });
 
   jsm.consumers.fetch(stream, "me", inbox, { no_wait: true });
 

@@ -1,5 +1,5 @@
 import * as path from "https://deno.land/std@0.83.0/path/mod.ts";
-import { NatsServer } from "https://deno.land/x/nats/tests/helpers/mod.ts";
+import { NatsServer } from "https://raw.githubusercontent.com/nats-io/nats.deno/main/tests/helpers/mod.ts";
 import { connect } from "../src/nats_deno.ts";
 
 import {
@@ -29,7 +29,6 @@ export function JetStreamConfig(
     conf.jetstream.store_dir = path.join("/tmp", "jetstream", nuid.next());
   }
   Deno.mkdirSync(conf.jetstream.store_dir, { recursive: true });
-
   return opts;
 }
 export async function setup(
