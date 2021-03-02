@@ -24,6 +24,8 @@ import {
   Subscription,
   SubscriptionImpl,
   SubscriptionOptions,
+  Timeout,
+  timeout,
 } from "./nbc_mod.ts";
 import {
   AckPolicy,
@@ -33,11 +35,13 @@ import {
   ConsumerListResponse,
   CreateConsumerRequest,
   DeliverPolicy,
+  Nanos,
   ReplayPolicy,
   SuccessResponse,
 } from "./types.ts";
 import {
   ephemeralConsumer,
+  ns,
   validateDurableName,
   validateStreamName,
 } from "./util.ts";
@@ -46,7 +50,7 @@ import { JetStreamOptions } from "./jetstream.ts";
 export interface PullOptions {
   batch: number;
   "no_wait": boolean; // no default here
-  expires: Date; // duration - min is 10s
+  expires: number;
 }
 
 export interface JetStreamSubscriptionOptions extends SubscriptionOptions {
@@ -88,7 +92,7 @@ export interface ConsumerAPI {
     stream: string,
     durable: string,
     deliver: string,
-    opts: { batch?: number; no_wait?: boolean; expires?: Date },
+    opts: Partial<PullOptions>,
   ): void;
 
   pullBatch(
@@ -239,6 +243,16 @@ export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
     return toJsMsg(m);
   }
 
+  // server has 1 message, sends message followed by 404
+  // jsm.consumers.pullBatch(stream, "me", {batch: 25, no_wait: true,})
+  // FIXME: expires and no_wait are mutually exclusive
+  // if no expires, it will fail after 512 batch max - ERR 408 when the max error triggers
+  // this will need a timeout
+  // jsm.consumers.pullBatch(stream, "me", {batch: 25});
+
+  // no_wait disables max waiting pulls
+  // FIXME: Err 408 - max waiting pulls 512 results in 408
+  // FIXME: Err 409 - max ack pending exceeded
   pullBatch(
     stream: string,
     durable: string,
@@ -247,29 +261,71 @@ export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
     validateStreamName(stream);
     validateDurableName(durable);
 
-    opts.batch = opts.batch ?? 1;
-    opts.no_wait = true;
+    const args: Partial<PullOptions> = {};
+    args.batch = opts.batch ?? 1;
+    args.no_wait = opts.no_wait ?? false;
+    let expires = opts.expires ?? 0;
+    if (expires) {
+      args.expires = ns(expires);
+    }
+    if (expires === 0 && args.no_wait === false) {
+      throw new Error("expires or no_wait is required");
+    }
+
+    let expireLock: Timeout<void> | null = null;
+
     const qi = new QueuedIterator<JsMsg>();
     const wants = opts.batch;
     let received = 0;
     qi.yieldedCb = (m: JsMsg) => {
       received++;
+      if (expireLock && m.info.pending === 0) {
+        // the expiration will close it
+        return;
+      }
       // if we have one pending and we got the expected
       // or there are no more stop the iterator
-      if (qi.getPending() === 1 && m.info.pending === 0 || wants === received) {
+      if (
+        qi.getPending() === 1 && m.info.pending === 0 || wants === received
+      ) {
         qi.stop();
       }
     };
+
     const inbox = createInbox();
     const sub = this.nc.subscribe(inbox, {
       max: opts.batch,
       callback: (err, msg) => {
         if (err) {
+          if (expireLock) {
+            expireLock.cancel();
+            expireLock = null;
+          }
           qi.stop(err);
-        } else if (
-          msg.headers && (msg.headers.code === 404 || msg.headers.code === 503)
-        ) {
-          qi.stop();
+        } else if (msg.headers && msg.headers.hasError) {
+          if (expireLock) {
+            expireLock.cancel();
+            expireLock = null;
+          }
+          // so we have an error - let them know otherwise
+          let err: Error | undefined;
+          switch (msg.headers!.code) {
+            case 404:
+              console.log("no messages");
+              // no messages, this is the only error we ignore
+              // this can come at the start, or at the end
+              break;
+            case 408:
+              err = new Error("too many pulls");
+              break;
+            case 409:
+              err = new Error("max ack pending exceeded");
+              break;
+            default:
+              err = new Error(msg.headers.status);
+              break;
+          }
+          qi.stop(err);
         } else {
           qi.received++;
           qi.push(toJsMsg(msg));
@@ -277,15 +333,31 @@ export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
       },
     });
 
-    (async () => {
+    // expireLock on the client  the issue is that the request
+    // is started on the client, which means that it will expire
+    // on the client first
+    if (expires) {
+      expireLock = timeout<void>(expires);
+      expireLock.catch(() => {
+        if (!sub.isClosed()) {
+          sub.drain();
+          expireLock = null;
+        }
+      });
+    }
+
+    (async (lock: Timeout<void> | null) => {
       // close the iterator if the connection or subscription closes unexpectedly
       await (sub as SubscriptionImpl).closed;
+      if (lock !== null) {
+        lock.cancel();
+      }
       qi.stop();
-    })().then().catch();
+    })(expireLock).catch();
 
     this.nc.publish(
       `${this.prefix}.CONSUMER.MSG.NEXT.${stream}.${durable}`,
-      this.jc.encode(opts),
+      this.jc.encode(args),
       { reply: inbox },
     );
     return qi;
@@ -302,11 +374,10 @@ export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
     validateStreamName(stream);
     validateDurableName(durable);
 
-    type po = { batch: number; expires?: string; "no_wait"?: boolean };
-    const batch = opts.batch ? opts.batch : 1;
-    const args = { batch } as po;
+    const args: { batch?: number; expires?: Nanos; "no_wait"?: boolean } = {};
+    args.batch = opts.batch ?? 1;
     if (opts.expires) {
-      args.expires = opts.expires.toISOString();
+      args.expires = ns(opts.expires);
     }
     if (opts.no_wait) {
       args.no_wait = opts.no_wait;

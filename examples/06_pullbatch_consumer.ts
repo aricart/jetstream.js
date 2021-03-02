@@ -1,8 +1,7 @@
 import { connect, StringCodec } from "../src/nats_deno.ts";
 import { nuid } from "../src/nbc_mod.ts";
-import { JetStream } from "../src/jetstream.ts";
+import { JetStream, JetStreamManager } from "../src/jetstream.ts";
 import { AckPolicy } from "../src/types.ts";
-import { JetStreamManager } from "../src/jsm.ts";
 
 const nc = await connect();
 const stream = nuid.next();
@@ -34,6 +33,7 @@ await (async () => {
     m.ack();
   }
 })();
+
 console.log("iterator done", batch.processed, "/", batch.received);
 const info = await jsm.consumers.info(stream, "me");
 console.log(info);

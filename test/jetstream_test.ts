@@ -158,7 +158,20 @@ Deno.test("jetstream - date format", () => {
   console.log(d.toISOString());
 });
 
-Deno.test("jetstream - pull batch none", async () => {
+Deno.test("jetstream - pull batch requires no_wait or expires", async () => {
+  const { ns, nc } = await setup(JetStreamConfig({}, true));
+  const { stream } = await initStream(nc);
+  const jsm = await JetStreamManager(nc);
+
+  const err = await assertThrowsAsync(async () => {
+    jsm.consumers.pullBatch(stream, "me", { batch: 10 });
+  });
+  assertEquals(err.message, "expires or no_wait is required");
+  await nc.close();
+  await ns.stop();
+});
+
+Deno.test("jetstream - pull batch none - no_wait", async () => {
   const { ns, nc } = await setup(JetStreamConfig({}, true));
   const { stream } = await initStream(nc);
   const jsm = await JetStreamManager(nc);
@@ -167,7 +180,10 @@ Deno.test("jetstream - pull batch none", async () => {
     ack_policy: AckPolicy.Explicit,
   });
 
-  const batch = jsm.consumers.pullBatch(stream, "me", { batch: 10 });
+  const batch = jsm.consumers.pullBatch(stream, "me", {
+    batch: 10,
+    no_wait: true,
+  });
   const done = (async () => {
     for await (const m of batch) {
       console.log(m.info);
@@ -176,6 +192,61 @@ Deno.test("jetstream - pull batch none", async () => {
   })();
 
   await done;
+  assertEquals(batch.received, 0);
+  await cleanup(ns, nc);
+});
+
+Deno.test("jetstream - pull batch none - breaks after expires", async () => {
+  const { ns, nc } = await setup(JetStreamConfig({}, true));
+  const { stream } = await initStream(nc);
+  const jsm = await JetStreamManager(nc);
+  await jsm.consumers.add(stream, {
+    durable_name: "me",
+    ack_policy: AckPolicy.Explicit,
+  });
+
+  const start = Date.now();
+  const batch = jsm.consumers.pullBatch(stream, "me", {
+    batch: 10,
+    expires: 1000,
+  });
+  const done = (async () => {
+    for await (const m of batch) {
+      console.log(m.info);
+      fail("expected no messages");
+    }
+  })();
+
+  await done;
+  const time = Date.now() - start;
+  assert(time >= 1000);
+  assertEquals(batch.received, 0);
+  await cleanup(ns, nc);
+});
+
+Deno.test("jetstream - pull batch one - breaks after expires", async () => {
+  const { ns, nc } = await setup(JetStreamConfig({}, true));
+  const { stream, subj } = await initStream(nc);
+  const jsm = await JetStreamManager(nc);
+  await jsm.consumers.add(stream, {
+    durable_name: "me",
+    ack_policy: AckPolicy.Explicit,
+  });
+
+  nc.publish(subj);
+
+  const batch = jsm.consumers.pullBatch(stream, "me", {
+    batch: 10,
+    expires: 1000,
+  });
+  const done = (async () => {
+    for await (const m of batch) {
+      console.log(m.info);
+    }
+  })();
+
+  await done;
+  assertEquals(batch.received, 1);
   await cleanup(ns, nc);
 });
 
@@ -192,7 +263,10 @@ Deno.test("jetstream - pull batch some", async () => {
   const js = await JetStream(nc);
   await js.publish(subj, sc.encode("a"));
 
-  const batch = jsm.consumers.pullBatch(stream, "me", { batch: 10 });
+  const batch = jsm.consumers.pullBatch(stream, "me", {
+    batch: 10,
+    expires: 1000,
+  });
   const msgs: JsMsg[] = [];
   const done = (async () => {
     for await (const m of batch) {
@@ -221,7 +295,10 @@ Deno.test("jetstream - pull batch more", async () => {
     await js.publish(subj, sc.encode(c));
   }
 
-  const batch = jsm.consumers.pullBatch(stream, "me", { batch: 5 });
+  const batch = jsm.consumers.pullBatch(stream, "me", {
+    batch: 5,
+    expires: 1000,
+  });
   const msgs: JsMsg[] = [];
   const done = (async () => {
     for await (const m of batch) {

@@ -1,4 +1,11 @@
-import { Consumer, ConsumerConfig } from "./types.ts";
+import {
+  AckPolicy,
+  Consumer,
+  ConsumerConfig,
+  DeliverPolicy,
+  Nanos,
+  ReplayPolicy,
+} from "./types.ts";
 import { createInbox, nuid } from "./nbc_mod.ts";
 import { PushConsumer, PushConsumerConfig } from "./consumer_api.ts";
 
@@ -30,10 +37,10 @@ export function defaultConsumer(
 ): ConsumerConfig {
   return Object.assign({
     name: name,
-    deliver_policy: "all",
-    ack_policy: "explicit",
+    deliver_policy: DeliverPolicy.All,
+    ack_policy: AckPolicy.Explicit,
     ack_wait: ns(30 * 1000),
-    replay_policy: "instant",
+    replay_policy: ReplayPolicy.Instant,
   }, opts);
 }
 
@@ -77,10 +84,10 @@ export function pushConsumer(
   return { stream_name: stream, config: c };
 }
 
-export function ns(millis: number) {
+export function ns(millis: number): Nanos {
   return millis * 1000000;
 }
 
-export function ms(ns: number) {
+export function ms(ns: Nanos) {
   return ns / 1000000;
 }

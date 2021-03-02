@@ -22,8 +22,13 @@ import {
   NatsError,
   RequestOptions,
 } from "./nbc_mod.ts";
-import { AckPolicy, ConsumerConfig, DeliverPolicy } from "./types.ts";
-import { validateDurableName } from "./util.ts";
+import { AckPolicy, ConsumerConfig, DeliverPolicy, Nanos } from "./types.ts";
+import {
+  defaultConsumer,
+  ns,
+  validateDurableName,
+  validateStreamName,
+} from "./util.ts";
 
 export enum PubHeaders {
   MsgIdHdr = "Nats-Msg-Id",
@@ -110,102 +115,152 @@ interface JetStreamPublishOptions {
   }>;
 }
 
-export type JetStreamSubOption = (opts: JetStreamSubOpts) => void;
-
-export interface JetStreamSubOpts {
-  stream: string;
+export interface ConsumerSubOpts {
   consumer: string;
-  pull: number;
   mack: boolean;
-  cfg: ConsumerConfig;
+  pull: number;
+  queue: string;
+  stream: string;
+  config: ConsumerConfig;
 }
 
-export function ackNone(): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.cfg.ack_policy = AckPolicy.None;
-  };
+function consumerOpts(): ConsumerOpts {
+  return new ConsumerOptsImpl();
 }
 
-export function ackAll(): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.cfg.ack_policy = AckPolicy.All;
-  };
+export interface ConsumerOpts {
+  pull(batch: number): void;
+  pullDirect(stream: string, consumer: string, batch: number): void;
+  manualAck(): void;
+  durable(name: string): void;
+  deliverAll(): void;
+  deliverLast(): void;
+  deliverNew(): void;
+  startSequence(seq: number): void;
+  startTime(date: Date | Nanos): void;
+  ackNone(): void;
+  ackAll(): void;
+  ackExplicit(): void;
+  maxDeliver(n: number): void;
+  maxAckPending(n: number): void;
+  deliverTo(subject: string): void;
+  queue(name: string): void;
 }
 
-export function ackExplicit(): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.cfg.ack_policy = AckPolicy.Explicit;
-  };
+async function buildConsumer(jso: ConsumerSubOpts) {
+  if (
+    jso.pull > 0 &&
+    (jso.config.ack_policy === AckPolicy.None ||
+      jso.config.ack_policy === AckPolicy.All)
+  ) {
+    throw new Error(`invalid pull consumer ack mode: ${jso.config.ack_policy}`);
+  }
+  jso.config.deliver_subject = jso.config.deliver_subject ?? "";
 }
 
-export function manualAck(): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.mack = true;
-  };
-}
+class ConsumerOptsImpl implements ConsumerOpts {
+  config: Partial<ConsumerConfig>;
+  consumer: string;
+  mack: boolean;
+  pullCount: number;
+  subQueue: string;
+  stream: string;
 
-export function deliverAll(): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.cfg.deliver_policy = DeliverPolicy.All;
-  };
-}
+  constructor() {
+    this.stream = "";
+    this.consumer = "";
+    this.pullCount = 0;
+    this.subQueue = "";
+    this.mack = false;
+    this.config = defaultConsumer("");
+    // not set
+    this.config.ack_policy = AckPolicy.None;
+  }
 
-export function deliverLast(): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.cfg.deliver_policy = DeliverPolicy.Last;
-  };
-}
-
-export function deliverNew(): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.cfg.deliver_policy = DeliverPolicy.New;
-  };
-}
-
-export function durable(name: string): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    validateDurableName(name);
-    opts.cfg.durable_name = name;
-  };
-}
-
-export function attach(deliverSubject: string): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.cfg.deliver_subject = deliverSubject;
-  };
-}
-
-export function pull(batchSize: number): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    if (batchSize <= 0) {
-      throw new Error("batchsize must be greater than 0");
+  pull(batch: number) {
+    if (batch <= 0) {
+      throw new Error("batch must be greater than 0");
     }
-    opts.pull = batchSize;
-  };
-}
+    this.pullCount = batch;
+  }
 
-export function pullDirect(
-  stream: string,
-  consumer: string,
-  batchSize: number,
-): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.stream = stream;
-    opts.consumer = consumer;
-    pull(batchSize)(opts);
-  };
-}
+  pullDirect(
+    stream: string,
+    consumer: string,
+    batchSize: number,
+  ): void {
+    validateStreamName(stream);
+    this.stream = stream;
+    this.consumer = consumer;
+    this.pull(batchSize);
+  }
 
-export function startSequence(seq: number): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.cfg.deliver_policy = DeliverPolicy.FromSequence;
-    opts.cfg.opt_start_seq = seq;
-  };
-}
+  deliverTo(subject: string) {
+    this.config.deliver_subject = subject;
+  }
 
-export function startTime(nanos: number): JetStreamSubOption {
-  return (opts: JetStreamSubOpts) => {
-    opts.cfg.deliver_policy = DeliverPolicy.FromTime;
-    opts.cfg.opt_start_time = nanos;
-  };
+  queue(name: string) {
+    this.subQueue = name;
+  }
+
+  manualAck() {
+    this.mack = true;
+  }
+
+  durable(name: string) {
+    validateDurableName(name);
+    this.config.durable_name = name;
+  }
+
+  deliverAll() {
+    this.config.deliver_policy = DeliverPolicy.All;
+  }
+
+  deliverLast() {
+    this.config.deliver_policy = DeliverPolicy.Last;
+  }
+
+  deliverNew() {
+    this.config.deliver_policy = DeliverPolicy.New;
+  }
+
+  startSequence(seq: number) {
+    if (seq <= 0) {
+      throw new Error("sequence must be greater than 0");
+    }
+    this.config.deliver_policy = DeliverPolicy.StartSequence;
+    this.config.opt_start_seq = seq;
+  }
+
+  startTime(time: Date | Nanos) {
+    let n: Nanos;
+    if (typeof time === "number") {
+      n = time as Nanos;
+    } else {
+      const d = time as Date;
+      n = ns(d.getTime());
+    }
+    this.config.deliver_policy = DeliverPolicy.StartTime;
+    this.config.opt_start_time = n;
+  }
+
+  ackNone() {
+    this.config.ack_policy = AckPolicy.None;
+  }
+
+  ackAll() {
+    this.config.ack_policy = AckPolicy.All;
+  }
+
+  ackExplicit() {
+    this.config.ack_policy = AckPolicy.Explicit;
+  }
+
+  maxDeliver(max: number) {
+    this.config.max_deliver = max;
+  }
+
+  maxAckPending(max: number) {
+    this.config.max_ack_pending = max;
+  }
 }

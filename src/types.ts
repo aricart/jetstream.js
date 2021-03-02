@@ -20,6 +20,8 @@ export enum AdvisoryKind {
   ConsumerQuorumLost = "consumer_quorum_lost",
 }
 
+export type Nanos = number;
+
 export interface ApiError {
   code: number;
   description: string;
@@ -101,8 +103,8 @@ export enum DeliverPolicy {
   All = "all",
   Last = "last",
   New = "new",
-  FromSequence = "by_start_sequence",
-  FromTime = "by_start_time",
+  StartSequence = "by_start_sequence",
+  StartTime = "by_start_time",
 }
 
 export enum AckPolicy {
@@ -113,7 +115,7 @@ export enum AckPolicy {
 }
 
 export enum ReplayPolicy {
-  Instanct = "instant",
+  Instant = "instant",
   Original = "original",
 }
 
@@ -245,7 +247,7 @@ export interface ConsumerConfig {
   "deliver_subject"?: string;
   "deliver_policy": DeliverPolicy;
   "opt_start_seq"?: number;
-  "opt_start_time"?: number;
+  "opt_start_time"?: Nanos;
   "ack_policy": AckPolicy;
   "ack_wait"?: number;
   "max_deliver"?: number;

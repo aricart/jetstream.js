@@ -1,7 +1,7 @@
 import { connect, createInbox } from "../src/nats_deno.ts";
 import { delay } from "../src/nbc_mod.ts";
 import { AckPolicy } from "../src/types.ts";
-import { JetStreamManager } from "../src/jsm.ts";
+import { JetStreamManager } from "../src/jetstream.ts";
 import { autoAck } from "../src/consumer_api.ts";
 
 const nc = await connect();
