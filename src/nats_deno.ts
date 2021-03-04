@@ -1,1 +1,1 @@
-export * from "https://raw.githubusercontent.com/nats-io/nats.deno/main/src/mod.ts";
+export * from "https://raw.githubusercontent.com/nats-io/nats.deno/param-sub/src/mod.ts";

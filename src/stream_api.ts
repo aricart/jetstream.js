@@ -84,8 +84,6 @@ export class StreamAPIImpl extends BaseApiClient implements StreamAPI {
     return cr.success;
   }
 
-  // FIXME: number of keys not editable - like replicas
-  // storage_type, mirror, placement
   async update(cfg = {} as StreamConfig): Promise<StreamInfo> {
     validateStreamName(cfg.name);
     const r = await this._request(

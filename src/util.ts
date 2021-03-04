@@ -65,7 +65,7 @@ export function ephemeralConsumer(
   cfg.name = cfg.name ? cfg.name : nuid.next();
   const deliver = cfg.deliver_subject ? cfg.deliver_subject : createInbox();
   const c = defaultPushConsumer(cfg.name, deliver, cfg);
-  return { stream_name: stream, config: c };
+  return { stream_name: stream, config: c } as PushConsumer;
 }
 
 export function pushConsumer(

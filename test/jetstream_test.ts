@@ -1,4 +1,10 @@
-import { cleanup, initStream, JetStreamConfig, setup } from "./jstest_util.ts";
+import {
+  cleanup,
+  initStream,
+  JetStreamConfig,
+  setup,
+  time,
+} from "./jstest_util.ts";
 import { JetStream, JetStreamManager } from "../src/jetstream.ts";
 import {
   assert,
@@ -7,9 +13,9 @@ import {
   fail,
 } from "https://deno.land/std@0.83.0/testing/asserts.ts";
 import { createInbox, deferred, Empty, StringCodec } from "../src/nbc_mod.ts";
-import { JsMsg, toJsMsg } from "../src/jsmsg.ts";
 import { PubAck } from "../src/jsclient.ts";
 import { AckPolicy } from "../src/types.ts";
+import { toJsMsg } from "../src/jsmsg.ts";
 
 Deno.test("jetstream - ephemeral", async () => {
   const { ns, nc } = await setup(JetStreamConfig({}, true));
@@ -167,8 +173,7 @@ Deno.test("jetstream - pull batch requires no_wait or expires", async () => {
     jsm.consumers.pullBatch(stream, "me", { batch: 10 });
   });
   assertEquals(err.message, "expires or no_wait is required");
-  await nc.close();
-  await ns.stop();
+  await cleanup(ns, nc);
 });
 
 Deno.test("jetstream - pull batch none - no_wait", async () => {
@@ -184,14 +189,14 @@ Deno.test("jetstream - pull batch none - no_wait", async () => {
     batch: 10,
     no_wait: true,
   });
-  const done = (async () => {
+
+  const err = await assertThrowsAsync(async () => {
     for await (const m of batch) {
       console.log(m.info);
       fail("expected no messages");
     }
-  })();
-
-  await done;
+  });
+  assertEquals(err.message, "no messages");
   assertEquals(batch.received, 0);
   await cleanup(ns, nc);
 });
@@ -205,7 +210,7 @@ Deno.test("jetstream - pull batch none - breaks after expires", async () => {
     ack_policy: AckPolicy.Explicit,
   });
 
-  const start = Date.now();
+  const sw = time();
   const batch = jsm.consumers.pullBatch(stream, "me", {
     batch: 10,
     expires: 1000,
@@ -218,8 +223,8 @@ Deno.test("jetstream - pull batch none - breaks after expires", async () => {
   })();
 
   await done;
-  const time = Date.now() - start;
-  assert(time >= 1000);
+  sw.mark();
+  sw.assertInRange(1000);
   assertEquals(batch.received, 0);
   await cleanup(ns, nc);
 });
@@ -232,9 +237,9 @@ Deno.test("jetstream - pull batch one - breaks after expires", async () => {
     durable_name: "me",
     ack_policy: AckPolicy.Explicit,
   });
-
   nc.publish(subj);
 
+  const sw = time();
   const batch = jsm.consumers.pullBatch(stream, "me", {
     batch: 10,
     expires: 1000,
@@ -246,11 +251,13 @@ Deno.test("jetstream - pull batch one - breaks after expires", async () => {
   })();
 
   await done;
+  sw.mark();
+  sw.assertInRange(1000);
   assertEquals(batch.received, 1);
   await cleanup(ns, nc);
 });
 
-Deno.test("jetstream - pull batch some", async () => {
+Deno.test("jetstream - pull batch full", async () => {
   const { ns, nc } = await setup(JetStreamConfig({}, true));
   const { stream, subj } = await initStream(nc);
   const jsm = await JetStreamManager(nc);
@@ -261,52 +268,24 @@ Deno.test("jetstream - pull batch some", async () => {
 
   const sc = StringCodec();
   const js = await JetStream(nc);
-  await js.publish(subj, sc.encode("a"));
+  const data = "0123456789a";
 
-  const batch = jsm.consumers.pullBatch(stream, "me", {
-    batch: 10,
-    expires: 1000,
-  });
-  const msgs: JsMsg[] = [];
-  const done = (async () => {
-    for await (const m of batch) {
-      msgs.push(m);
-      m.ack();
-    }
-  })();
-  await done;
-  assertEquals(msgs.length, 1);
-  await cleanup(ns, nc);
-});
-
-Deno.test("jetstream - pull batch more", async () => {
-  const { ns, nc } = await setup(JetStreamConfig({}, true));
-  const { stream, subj } = await initStream(nc);
-  const jsm = await JetStreamManager(nc);
-  await jsm.consumers.add(stream, {
-    durable_name: "me",
-    ack_policy: AckPolicy.Explicit,
-  });
-
-  const sc = StringCodec();
-  const js = await JetStream(nc);
-  const data = "abcdefghijklmnopqrstuvwxyz0123456789";
   for (const c of data) {
     await js.publish(subj, sc.encode(c));
   }
-
+  const sw = time();
   const batch = jsm.consumers.pullBatch(stream, "me", {
     batch: 5,
     expires: 1000,
   });
-  const msgs: JsMsg[] = [];
   const done = (async () => {
     for await (const m of batch) {
-      msgs.push(m);
       m.ack();
     }
   })();
   await done;
-  assertEquals(msgs.length, 5);
+  sw.mark();
+  sw.assertLess(1000);
+  assertEquals(batch.received, 5);
   await cleanup(ns, nc);
 });

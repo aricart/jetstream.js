@@ -26,7 +26,7 @@ export interface JsMsg {
   ack(): void;
   nak(): void;
   working(): void;
-  next(subj?: string): void;
+  // next(subj?: string): void;
   term(): void;
 }
 

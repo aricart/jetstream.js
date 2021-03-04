@@ -228,31 +228,30 @@ export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
     return this.ephemeral(stream, {}, opts);
   }
 
-  // FIXME: this will jam the server - maybe pulls for 10s
   async pull(stream: string, durable: string): Promise<JsMsg> {
     validateStreamName(stream);
     validateDurableName(durable);
-    const m = await this.nc.request(
+    const msg = await this.nc.request(
       `${this.prefix}.CONSUMER.MSG.NEXT.${stream}.${durable}`,
       this.jc.encode({ no_wait: true, batch: 1 }),
       { noMux: true, timeout: this.timeout },
     );
-    if (m.headers && (m.headers.code === 404 || m.headers.code === 503)) {
-      throw new Error("no messages");
+    const err = checkJsError(msg);
+    if (err) {
+      throw (err);
     }
-    return toJsMsg(m);
+    return toJsMsg(msg);
   }
 
-  // server has 1 message, sends message followed by 404
-  // jsm.consumers.pullBatch(stream, "me", {batch: 25, no_wait: true,})
-  // FIXME: expires and no_wait are mutually exclusive
-  // if no expires, it will fail after 512 batch max - ERR 408 when the max error triggers
-  // this will need a timeout
-  // jsm.consumers.pullBatch(stream, "me", {batch: 25});
-
-  // no_wait disables max waiting pulls
-  // FIXME: Err 408 - max waiting pulls 512 results in 408
-  // FIXME: Err 409 - max ack pending exceeded
+  /**
+   * Returns available messages upto specified batch count.
+   * If expires is set the iterator will wait for the specified
+   * ammount of millis before closing the subscription.
+   * If no_wait is specified, the iterator will return no messages.
+   * @param stream
+   * @param durable
+   * @param opts
+   */
   pullBatch(
     stream: string,
     durable: string,
@@ -260,6 +259,8 @@ export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
   ): QueuedIterator<JsMsg> {
     validateStreamName(stream);
     validateDurableName(durable);
+
+    let timer: Timeout<void> | null = null;
 
     const args: Partial<PullOptions> = {};
     args.batch = opts.batch ?? 1;
@@ -272,14 +273,12 @@ export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
       throw new Error("expires or no_wait is required");
     }
 
-    let expireLock: Timeout<void> | null = null;
-
     const qi = new QueuedIterator<JsMsg>();
     const wants = opts.batch;
     let received = 0;
     qi.yieldedCb = (m: JsMsg) => {
       received++;
-      if (expireLock && m.info.pending === 0) {
+      if (timer && m.info.pending === 0) {
         // the expiration will close it
         return;
       }
@@ -295,35 +294,14 @@ export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
     const inbox = createInbox();
     const sub = this.nc.subscribe(inbox, {
       max: opts.batch,
-      callback: (err, msg) => {
+      callback: (err: Error | null, msg) => {
+        if (err === null) {
+          err = checkJsError(msg);
+        }
         if (err) {
-          if (expireLock) {
-            expireLock.cancel();
-            expireLock = null;
-          }
-          qi.stop(err);
-        } else if (msg.headers && msg.headers.hasError) {
-          if (expireLock) {
-            expireLock.cancel();
-            expireLock = null;
-          }
-          // so we have an error - let them know otherwise
-          let err: Error | undefined;
-          switch (msg.headers!.code) {
-            case 404:
-              console.log("no messages");
-              // no messages, this is the only error we ignore
-              // this can come at the start, or at the end
-              break;
-            case 408:
-              err = new Error("too many pulls");
-              break;
-            case 409:
-              err = new Error("max ack pending exceeded");
-              break;
-            default:
-              err = new Error(msg.headers.status);
-              break;
+          if (timer) {
+            timer.cancel();
+            timer = null;
           }
           qi.stop(err);
         } else {
@@ -333,27 +311,27 @@ export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
       },
     });
 
-    // expireLock on the client  the issue is that the request
+    // timer on the client  the issue is that the request
     // is started on the client, which means that it will expire
     // on the client first
     if (expires) {
-      expireLock = timeout<void>(expires);
-      expireLock.catch(() => {
+      timer = timeout<void>(expires);
+      timer.catch(() => {
         if (!sub.isClosed()) {
           sub.drain();
-          expireLock = null;
+          timer = null;
         }
       });
     }
 
-    (async (lock: Timeout<void> | null) => {
+    (async () => {
       // close the iterator if the connection or subscription closes unexpectedly
       await (sub as SubscriptionImpl).closed;
-      if (lock !== null) {
-        lock.cancel();
+      if (timer !== null) {
+        timer.cancel();
       }
       qi.stop();
-    })(expireLock).catch();
+    })().catch();
 
     this.nc.publish(
       `${this.prefix}.CONSUMER.MSG.NEXT.${stream}.${durable}`,
@@ -405,6 +383,37 @@ export class ConsumerAPIImpl extends BaseApiClient implements ConsumerAPI {
       pull: pull,
       attached: attached,
     } as JetStreamSubscription;
+  }
+
+  // async buildConsumer(jso: ConsumerSubOpts) {
+  //   if (
+  //     jso.pull > 0 &&
+  //     (jso.config.ack_policy === AckPolicy.None ||
+  //       jso.config.ack_policy === AckPolicy.All)
+  //   ) {
+  //     throw new Error(`invalid pull consumer ack mode: ${jso.config.ack_policy}`);
+  //   }
+  //   jso.config.deliver_subject = jso.config.deliver_subject ?? "";
+  // }
+}
+
+function checkJsError(msg: Msg): Error | null {
+  const h = msg.headers;
+  if (!h) {
+    return null;
+  }
+  if (h.code === 0 || (h.code >= 200 && h.code < 300)) {
+    return null;
+  }
+  switch (h.code) {
+    case 404:
+      return new Error("no messages");
+    case 408:
+      return new Error("too many pulls");
+    case 409:
+      return new Error("max ack pending exceeded");
+    default:
+      return new Error(h.status);
   }
 }
 

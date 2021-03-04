@@ -129,33 +129,23 @@ function consumerOpts(): ConsumerOpts {
 }
 
 export interface ConsumerOpts {
-  pull(batch: number): void;
-  pullDirect(stream: string, consumer: string, batch: number): void;
-  manualAck(): void;
-  durable(name: string): void;
+  ackAll(): void;
+  ackExplicit(): void;
+  ackNone(): void;
   deliverAll(): void;
   deliverLast(): void;
   deliverNew(): void;
+  deliverTo(subject: string): void;
+  durable(name: string): void;
+  manualAck(): void;
+  maxAckPending(n: number): void;
+  maxDeliver(n: number): void;
+  maxWaiting(n: number): void;
+  pull(batch: number): void;
+  pullDirect(stream: string, consumer: string, batch: number): void;
+  queue(name: string): void;
   startSequence(seq: number): void;
   startTime(date: Date | Nanos): void;
-  ackNone(): void;
-  ackAll(): void;
-  ackExplicit(): void;
-  maxDeliver(n: number): void;
-  maxAckPending(n: number): void;
-  deliverTo(subject: string): void;
-  queue(name: string): void;
-}
-
-async function buildConsumer(jso: ConsumerSubOpts) {
-  if (
-    jso.pull > 0 &&
-    (jso.config.ack_policy === AckPolicy.None ||
-      jso.config.ack_policy === AckPolicy.All)
-  ) {
-    throw new Error(`invalid pull consumer ack mode: ${jso.config.ack_policy}`);
-  }
-  jso.config.deliver_subject = jso.config.deliver_subject ?? "";
 }
 
 class ConsumerOptsImpl implements ConsumerOpts {
@@ -262,5 +252,9 @@ class ConsumerOptsImpl implements ConsumerOpts {
 
   maxAckPending(max: number) {
     this.config.max_ack_pending = max;
+  }
+
+  maxWaiting(max: number) {
+    this.config.max_waiting = max;
   }
 }
