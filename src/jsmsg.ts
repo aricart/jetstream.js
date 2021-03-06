@@ -48,7 +48,7 @@ export function toJsMsg(m: Msg): JsMsg {
 export function parseInfo(s: string): DeliveryInfo {
   const tokens = s.split(".");
   if (tokens.length !== 9 && tokens[0] !== "$JS" && tokens[1] !== "ACK") {
-    throw new Error("not js message");
+    throw new Error(`not js message`);
   }
   // "$JS.ACK.<stream>.<consumer>.<redeliveryCount><streamSeq><deliverySequence>.<timestamp>.<pending>"
   const di = {} as DeliveryInfo;
@@ -65,9 +65,11 @@ export function parseInfo(s: string): DeliveryInfo {
 class JsMsgImpl implements JsMsg {
   msg: Msg;
   di?: DeliveryInfo;
+  didAck: boolean;
 
   constructor(msg: Msg) {
     this.msg = msg;
+    this.didAck = false;
   }
 
   get subject(): string {
@@ -105,16 +107,23 @@ class JsMsgImpl implements JsMsg {
     return this.info.streamSequence;
   }
 
+  doAck(payload: Uint8Array) {
+    if (!this.didAck) {
+      this.didAck = true;
+      this.msg.respond(payload);
+    }
+  }
+
   ack() {
-    this.msg.respond(ACK);
+    this.doAck(ACK);
   }
 
   nak() {
-    this.msg.respond(NAK);
+    this.doAck(NAK);
   }
 
   working() {
-    this.msg.respond(WPI);
+    this.doAck(WPI);
   }
 
   next(subj?: string, ro?: Partial<NextRequest>) {
@@ -128,6 +137,6 @@ class JsMsgImpl implements JsMsg {
   }
 
   term() {
-    this.msg.respond(TERM);
+    this.doAck(TERM);
   }
 }

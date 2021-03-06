@@ -44,7 +44,7 @@ export async function JetStreamManager(
     await adm.getAccountInfo();
   } catch (err) {
     let ne = err as NatsError;
-    if (ne.code === ErrorCode.NO_RESPONDERS) {
+    if (ne.code === ErrorCode.NoResponders) {
       ne = new NatsError(JetstreamNotEnabled, JetstreamNotEnabled);
     }
     throw ne;

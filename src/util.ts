@@ -1,13 +1,11 @@
 import {
   AckPolicy,
-  Consumer,
   ConsumerConfig,
   DeliverPolicy,
   Nanos,
   ReplayPolicy,
 } from "./types.ts";
 import { createInbox, nuid } from "./nbc_mod.ts";
-import { PushConsumer, PushConsumerConfig } from "./consumer_api.ts";
 
 export function validateDurableName(name?: string) {
   return validateName("durable", name);
@@ -44,45 +42,45 @@ export function defaultConsumer(
   }, opts);
 }
 
-export function defaultPushConsumer(
-  name: string,
-  deliverSubject: string,
-  opts: Partial<ConsumerConfig> = {},
-): PushConsumerConfig {
-  return Object.assign(defaultConsumer(name), {
-    deliver_subject: deliverSubject,
-  }, opts);
-}
+// export function defaultPushConsumer(
+//   name: string,
+//   deliverSubject: string,
+//   opts: Partial<ConsumerConfig> = {},
+// ): PushConsumerConfig {
+//   return Object.assign(defaultConsumer(name), {
+//     deliver_subject: deliverSubject,
+//   }, opts);
+// }
 
-export function ephemeralConsumer(
-  stream: string,
-  cfg: Partial<ConsumerConfig> = {},
-): PushConsumer {
-  validateStreamName(stream);
-  if (cfg.durable_name) {
-    throw new Error("ephemeral subscribers cannot be durable");
-  }
-  cfg.name = cfg.name ? cfg.name : nuid.next();
-  const deliver = cfg.deliver_subject ? cfg.deliver_subject : createInbox();
-  const c = defaultPushConsumer(cfg.name, deliver, cfg);
-  return { stream_name: stream, config: c } as PushConsumer;
-}
-
-export function pushConsumer(
-  stream: string,
-  cfg: Partial<ConsumerConfig> = {},
-): Consumer {
-  validateStreamName(stream);
-  if (!cfg.durable_name) {
-    throw new Error("durable_name is required");
-  }
-  if (!cfg.deliver_subject) {
-    throw new Error("deliver_subject is required");
-  }
-  cfg.name = cfg.name ? cfg.name : nuid.next();
-  const c = defaultPushConsumer(cfg.name, cfg.durable_name, cfg);
-  return { stream_name: stream, config: c };
-}
+// export function ephemeralConsumer(
+//   stream: string,
+//   cfg: Partial<ConsumerConfig> = {},
+// ): PushConsumer {
+//   validateStreamName(stream);
+//   if (cfg.durable_name) {
+//     throw new Error("ephemeral subscribers cannot be durable");
+//   }
+//   cfg.name = cfg.name ? cfg.name : nuid.next();
+//   const deliver = cfg.deliver_subject ? cfg.deliver_subject : createInbox();
+//   const c = defaultPushConsumer(cfg.name, deliver, cfg);
+//   return { stream_name: stream, config: c } as PushConsumer;
+// }
+//
+// export function pushConsumer(
+//   stream: string,
+//   cfg: Partial<ConsumerConfig> = {},
+// ): Consumer {
+//   validateStreamName(stream);
+//   if (!cfg.durable_name) {
+//     throw new Error("durable_name is required");
+//   }
+//   if (!cfg.deliver_subject) {
+//     throw new Error("deliver_subject is required");
+//   }
+//   cfg.name = cfg.name ? cfg.name : nuid.next();
+//   const c = defaultPushConsumer(cfg.name, cfg.durable_name, cfg);
+//   return { stream_name: stream, config: c };
+// }
 
 export function ns(millis: number): Nanos {
   return millis * 1000000;

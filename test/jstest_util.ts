@@ -1,5 +1,5 @@
 import * as path from "https://deno.land/std@0.83.0/path/mod.ts";
-import { NatsServer } from "https://raw.githubusercontent.com/nats-io/nats.deno/param-sub/tests/helpers/mod.ts";
+import { NatsServer } from "https://raw.githubusercontent.com/nats-io/nats.deno/main/tests/helpers/mod.ts";
 import { connect } from "../src/nats_deno.ts";
 import { assert } from "https://deno.land/std@0.83.0/testing/asserts.ts";
 import {
@@ -86,7 +86,7 @@ export class Mark {
   }
 
   duration(): number {
-    let idx = this.measures.length - 1;
+    const idx = this.measures.length - 1;
     if (this.measures[idx][1] === 0) {
       this.measures.pop();
     }
